@@ -1,9 +1,10 @@
-import { Router, Request, Response } from 'express';
+import { Router } from 'express';
+import userRoutes from '../modules/user/user.routes';
+import authRoutes from '../modules/auth/auth.routes';
 
 const router = Router();
 
-router.get('/', (req: Request, res: Response) => {
-  res.json({ status: 'ok' });
-});
+router.use('/auth', authRoutes);
+router.use('/users', userRoutes);
 
 export default router;

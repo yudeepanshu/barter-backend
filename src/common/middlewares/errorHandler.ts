@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { ZodError } from 'zod';
 import { logger } from '../../config/logger';
 import { sendError } from '../utils/responseHandler';
 
@@ -6,8 +7,13 @@ interface AppError extends Error {
   status?: number;
 }
 
-export const errorHandler = (err: AppError, req: Request, res: Response) => {
-  logger.error(err, { url: req.url, method: req.method });
+export const errorHandler = (err: AppError | ZodError, req: Request, res: Response, next: any) => {
+  logger.error('Error handler called', { error: err.message, url: req.url, method: req.method });
+
+  if (err instanceof ZodError) {
+    const errors = err.errors.map((e) => `${e.path.join('.')}: ${e.message}`);
+    return sendError(res, 'Validation failed', 400, errors);
+  }
 
   return sendError(
     res,

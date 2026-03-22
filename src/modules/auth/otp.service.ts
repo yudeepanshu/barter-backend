@@ -3,6 +3,10 @@ import crypto from 'crypto';
 import redis from '../../config/redis';
 import { config } from '../../config/env';
 import { AppError } from '../../common/errors/AppError';
+import { EmailOtpSender } from './senders/emailSender';
+import { OtpSender } from './senders/interface';
+
+const otpSender: OtpSender = new EmailOtpSender();
 
 export const generateOTP = () => crypto.randomInt(100000, 999999).toString();
 
@@ -41,7 +45,8 @@ export const sendOTP = async (identifier: string) => {
   // Cooldown
   await redis.set(cooldownKey, '1', 'EX', 30);
 
-  console.log('OTP:', otp);
+  // Send OTP
+  await otpSender.send(normalized, otp);
 };
 
 export const verifyOTP = async (identifier: string, code: string) => {

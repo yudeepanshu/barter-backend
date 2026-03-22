@@ -11,7 +11,7 @@ export const errorHandler = (err: AppError | ZodError, req: Request, res: Respon
   logger.error('Error handler called', { error: err.message, url: req.url, method: req.method });
 
   if (err instanceof ZodError) {
-    const errors = err.errors.map((e) => `${e.path.join('.')}: ${e.message}`);
+    const errors = err.issues.map((e) => `${e.path.join('.')}: ${e.message}`);
     return sendError(res, 'Validation failed', 400, errors);
   }
 

@@ -11,6 +11,10 @@ export interface EnvConfig {
   MAX_ATTEMPTS: number;
   REDIS_HOST: string;
   REDIS_PORT: number;
+  EMAIL: {
+    API_KEY: string;
+    FROM: string;
+  };
 }
 
 export const config: EnvConfig = {
@@ -22,4 +26,8 @@ export const config: EnvConfig = {
   MAX_ATTEMPTS: Number(process.env.MAX_ATTEMPTS) || 5,
   REDIS_HOST: process.env.REDIS_HOST || '127.0.0.1',
   REDIS_PORT: Number(process.env.REDIS_PORT) || 6379,
+  EMAIL: {
+    API_KEY: process.env.RESEND_API_KEY || '',
+    FROM: process.env.EMAIL_FROM || 'noreply@barter.com',
+  },
 };

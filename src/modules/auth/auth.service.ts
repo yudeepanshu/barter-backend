@@ -26,5 +26,13 @@ export const verifyOtpService = async (identifier: string, code: string) => {
 
   const tokens = generateTokens(user!.id);
 
-  return { user, tokens };
+  const userResponse = {
+    id: user!.id,
+    userName: user!.userName,
+    email: user!.email,
+    mobileNumber: user!.mobileNumber,
+    profilePicture: user!.profilePicture,
+  };
+
+  return { user: userResponse, tokens };
 };

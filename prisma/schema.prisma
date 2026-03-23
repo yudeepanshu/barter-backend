@@ -8,16 +8,65 @@ datasource db {
 }
 
 model User {
-  id         String  @id @default(uuid())
-  userName       String
-  mobileNumber   String?  @unique
-  email          String? @unique
-  profilePicture String?
+  id              String  @id @default(uuid())
+  userName        String
+  mobileNumber    String?  @unique
+  email           String? @unique
+  profilePicture  String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   contactPreference UserContactPreference?
+  products          Product[] @relation("OwnerProducts")
+}
+
+model Category {
+  id               String    @id @default(uuid())
+  name             String    @unique
+  parentCategoryId String?   
+
+  parentCategory Category?   @relation("CategoryParent", fields: [parentCategoryId], references: [id])
+  children      Category[]   @relation("CategoryParent")
+  products       Product[]
+}
+
+model Product {
+  id               String   @id @default(uuid())
+  title            String
+  description      String?
+  categoryId       String?
+  status           String   @default("ACTIVE")
+  requestByMoney   Boolean  @default(false)
+  currentOwnerId   String
+  productImages    ProductImage[]
+  locationName     String?
+  latitude         Float?
+  longitude        Float?
+  overrideCount    Int      @default(0)
+  lastOverrideAt   DateTime?
+  cooldownUntil    DateTime?
+  isPreOwned       Boolean  @default(false)
+  lifecycleVersion Int      @default(1)
+  isListed         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  owner    User     @relation("OwnerProducts", fields: [currentOwnerId], references: [id])
+  category Category? @relation(fields: [categoryId], references: [id])
+}
+
+model ProductImage {
+  id         String   @id @default(uuid())
+  productId  String
+  url        String
+  storageKey String
+  isPrimary  Boolean  @default(false)
+  width      Int?
+  height     Int?
+  createdAt  DateTime @default(now())
+
+  product    Product  @relation(fields: [productId], references: [id])
 }
 
 model UserContactPreference {

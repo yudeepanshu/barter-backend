@@ -11,9 +11,15 @@ export interface EnvConfig {
   MAX_ATTEMPTS: number;
   REDIS_HOST: string;
   REDIS_PORT: number;
+  ADMIN_KEY_HASH: string;
   EMAIL: {
     API_KEY: string;
     FROM: string;
+  };
+  STORAGE: {
+    PROVIDER: string;
+    S3_BUCKET: string;
+    S3_REGION: string;
   };
 }
 
@@ -26,8 +32,15 @@ export const config: EnvConfig = {
   MAX_ATTEMPTS: Number(process.env.MAX_ATTEMPTS) || 5,
   REDIS_HOST: process.env.REDIS_HOST || '127.0.0.1',
   REDIS_PORT: Number(process.env.REDIS_PORT) || 6379,
+  ADMIN_KEY_HASH:
+    process.env.ADMIN_KEY_HASH || '$2a$10$wXAHnDqfPkKBYClIWL7sW.z7K1H7U3q8FjKz8X5FjKz8X5FjKz8X5',
   EMAIL: {
     API_KEY: process.env.RESEND_API_KEY || '',
     FROM: process.env.EMAIL_FROM || 'noreply@barter.com',
+  },
+  STORAGE: {
+    PROVIDER: process.env.BLOB_STORAGE_PROVIDER || 's3',
+    S3_BUCKET: process.env.S3_BUCKET_NAME || '',
+    S3_REGION: process.env.S3_REGION || 'us-east-1',
   },
 };

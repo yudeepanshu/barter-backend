@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Barter Backend API",
-    "description": "API collection for Barter Backend",
+    "description": "API collection for Barter Backend with Auth, Users, and Products",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -23,54 +23,18 @@
               "raw": "{\n  \"identifier\": \"user@example.com\"\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/auth/request-otp",
+              "raw": "{{baseUrl}}/api/auth/request-otp",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
+                "api",
                 "auth",
                 "request-otp"
               ]
             },
             "description": "Request OTP for email or phone number\n\nIdentifier can be:\n- Email: user@example.com\n- Phone: 10-digit number (e.g., 9876543210)"
-          },
-          "response": [
-            {
-              "name": "Success",
-              "originalRequest": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"identifier\": \"user@example.com\"\n}"
-                },
-                "url": {
-                  "raw": "{{baseUrl}}/auth/request-otp",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "request-otp"
-                  ]
-                }
-              },
-              "status": "OK",
-              "code": 200,
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json"
-                }
-              ],
-              "body": "{\n  \"success\": true,\n  \"message\": \"Success\",\n  \"meta\": {\n    \"timestamp\": \"2026-03-21T10:00:00.000Z\"\n  }\n}"
-            }
-          ]
+          }
         },
         {
           "name": "Verify OTP",
@@ -87,89 +51,18 @@
               "raw": "{\n  \"identifier\": \"user@example.com\",\n  \"code\": \"123456\"\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/auth/verify-otp",
+              "raw": "{{baseUrl}}/api/auth/verify-otp",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
+                "api",
                 "auth",
                 "verify-otp"
               ]
             },
-            "description": "Verify OTP code and get authentication tokens\n\nRequired:\n- identifier: Email or 10-digit phone\n- code: 6-digit OTP"
-          },
-          "response": [
-            {
-              "name": "Success",
-              "originalRequest": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"identifier\": \"user@example.com\",\n  \"code\": \"123456\"\n}"
-                },
-                "url": {
-                  "raw": "{{baseUrl}}/auth/verify-otp",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "verify-otp"
-                  ]
-                }
-              },
-              "status": "OK",
-              "code": 200,
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json"
-                }
-              ],
-              "body": "{\n  \"success\": true,\n  \"message\": \"Success\",\n  \"data\": {\n    \"user\": {\n      \"id\": \"user_123\",\n      \"userName\": \"New User\",\n      \"email\": \"user@example.com\",\n      \"mobileNumber\": null,\n      \"profilePicture\": null\n    },\n    \"tokens\": {\n      \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n      \"refreshToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\"\n    }\n  },\n  \"meta\": {\n    \"timestamp\": \"2026-03-21T10:00:00.000Z\"\n  }\n}"
-            },
-            {
-              "name": "Invalid OTP",
-              "originalRequest": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"identifier\": \"user@example.com\",\n  \"code\": \"000000\"\n}"
-                },
-                "url": {
-                  "raw": "{{baseUrl}}/auth/verify-otp",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "verify-otp"
-                  ]
-                }
-              },
-              "status": "Bad Request",
-              "code": 400,
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json"
-                }
-              ],
-              "body": "{\n  \"success\": false,\n  \"message\": \"Invalid OTP\",\n  \"meta\": {\n    \"timestamp\": \"2026-03-21T10:00:00.000Z\"\n  }\n}"
-            }
-          ]
+            "description": "Verify OTP code and get authentication tokens\n\nRequired:\n- identifier: Email or 10-digit phone\n- code: 6-digit OTP\n\nSave the accessToken to the postman variable {{accessToken}} for authenticated requests"
+          }
         }
       ]
     },
@@ -188,16 +81,354 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/users/profile",
+              "raw": "{{baseUrl}}/api/users/profile",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
+                "api",
                 "users",
                 "profile"
               ]
             },
             "description": "Get authenticated user profile (requires valid access token)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "Get All Categories",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "categories"
+              ]
+            },
+            "description": "Get all categories (PUBLIC)"
+          }
+        },
+        {
+          "name": "Get Category By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/categories/770e8400-e29b-41d4-a716-446655440002",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "categories",
+                "770e8400-e29b-41d4-a716-446655440002"
+              ]
+            },
+            "description": "Get a single category by ID with products and subcategories (PUBLIC)"
+          }
+        },
+        {
+          "name": "Create Category",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Admin-Key",
+                "value": "{{adminKey}}",
+                "description": "Admin API key - default dev key: admin123"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Electronics\",\n  \"parentCategoryId\": null\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "categories"
+              ]
+            },
+            "description": "Create a new category (ADMIN ONLY)\n\nRequired headers:\n- X-Admin-Key: Your admin key\n\nRequired fields:\n- name: string (max 100 chars)\n\nOptional fields:\n- parentCategoryId: UUID of parent category for nested categories"
+          }
+        },
+        {
+          "name": "Update Category",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Admin-Key",
+                "value": "{{adminKey}}",
+                "description": "Admin API key"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Electronics & Gadgets\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/categories/770e8400-e29b-41d4-a716-446655440002",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "categories",
+                "770e8400-e29b-41d4-a716-446655440002"
+              ]
+            },
+            "description": "Update a category (ADMIN ONLY)\n\nOptional fields:\n- name: string\n- parentCategoryId: UUID\n\nValidation:\n- Cannot create circular parent references\n- Category name must be unique"
+          }
+        },
+        {
+          "name": "Delete Category",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Admin-Key",
+                "value": "{{adminKey}}",
+                "description": "Admin API key"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/categories/770e8400-e29b-41d4-a716-446655440002",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "categories",
+                "770e8400-e29b-41d4-a716-446655440002"
+              ]
+            },
+            "description": "Delete a category (ADMIN ONLY)\n\nRestrictions:\n- Cannot delete if it has child categories\n- Cannot delete if it has associated products"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "Get All Products",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/products?status=ACTIVE",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "ACTIVE",
+                  "disabled": true
+                },
+                {
+                  "key": "categoryId",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "ownerId",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Get all products with optional filters (PUBLIC)\n\nQuery Parameters (all optional):\n- status: ACTIVE | RESERVED | EXCHANGED | REMOVED\n- categoryId: UUID\n- ownerId: UUID\n- search: Search term for title or description"
+          }
+        },
+        {
+          "name": "Get Product By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/660e8400-e29b-41d4-a716-446655440001",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "660e8400-e29b-41d4-a716-446655440001"
+              ]
+            },
+            "description": "Get a single product by ID with all images (PUBLIC)"
+          }
+        },
+        {
+          "name": "Create Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Vintage Camera\",\n  \"description\": \"A beautiful vintage camera in good condition\",\n  \"categoryId\": \"770e8400-e29b-41d4-a716-446655440002\",\n  \"status\": \"ACTIVE\",\n  \"requestByMoney\": false,\n  \"locationName\": \"New York, NY\",\n  \"latitude\": 40.7128,\n  \"longitude\": -74.0060,\n  \"isPreOwned\": true,\n  \"lifecycleVersion\": 1,\n  \"isListed\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products"
+              ]
+            },
+            "description": "Create a new product (PROTECTED - requires auth)\n\nRequired fields:\n- title: string\n\nOptional fields:\n- description: string\n- categoryId: UUID\n- status: ACTIVE | RESERVED | EXCHANGED | REMOVED (default: ACTIVE)\n- requestByMoney: boolean (default: false)\n- locationName: string\n- latitude: number\n- longitude: number\n- isPreOwned: boolean (default: false)\n- lifecycleVersion: positive integer (default: 1)\n- isListed: boolean (default: true)\n\nNote: currentOwnerId is automatically set from authenticated user token"
+          }
+        },
+        {
+          "name": "Upload Product Images",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "images",
+                  "type": "file",
+                  "src": [],
+                  "description": "Image file (JPEG, PNG, WebP). Max 6 files per request, max 10MB each"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products/660e8400-e29b-41d4-a716-446655440001/images",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "660e8400-e29b-41d4-a716-446655440001",
+                "images"
+              ]
+            },
+            "description": "Upload images for a product (PROTECTED - requires auth)\n\nForm Data:\n- images: File (multipart, multiple allowed)\n\nConstraints:\n- Max 6 images per request\n- Max 10MB per image\n- Allowed types: JPEG, PNG, WebP\n- Images are automatically resized/compressed (max 2048x2048, JPEG quality 80-85)\n- First image is set as primary\n- URLs returned from AWS S3\n\nNote: Only product owner can upload images"
+          }
+        },
+        {
+          "name": "Delete Product",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/660e8400-e29b-41d4-a716-446655440001",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "660e8400-e29b-41d4-a716-446655440001"
+              ]
+            },
+            "description": "Delete a product and all associated images from S3 (PROTECTED)\n\nNote: Only product owner can delete their products"
+          }
+        },
+        {
+          "name": "Delete Product Image",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/660e8400-e29b-41d4-a716-446655440001/images/880e8400-e29b-41d4-a716-446655440003",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "660e8400-e29b-41d4-a716-446655440001",
+                "images",
+                "880e8400-e29b-41d4-a716-446655440003"
+              ]
+            },
+            "description": "Delete a specific image from a product (PROTECTED)\n\nPath Parameters:\n- productId: UUID of the product\n- imageId: UUID of the image to delete\n\nNote: Only product owner can delete images from their products"
           }
         }
       ]
@@ -207,13 +438,14 @@
     {
       "key": "baseUrl",
       "value": "http://localhost:8000",
-      "type": "string"
+      "type": "string",
+      "description": "Base URL for the API"
     },
     {
       "key": "accessToken",
       "value": "",
       "type": "string",
-      "description": "JWT access token from verify-otp response"
+      "description": "JWT access token from verify-otp response. Copy and paste the token here after authentication."
     }
   ]
 }

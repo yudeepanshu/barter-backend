@@ -7,6 +7,7 @@ import {
   queryProductsSchema,
   generatePresignedUrlsSchema,
   addProductImagesSchema,
+  transferOwnershipSchema,
 } from './product.schema';
 
 export const createProduct = async (req: Request, res: Response) => {
@@ -41,6 +42,24 @@ export const deleteProductImage = async (req: Request, res: Response) => {
   await productService.deleteProductImage(imageId, userId);
   return sendSuccess(res, null, 'Product image deleted');
 };
+export const transferProductOwnership = async (req: Request, res: Response) => {
+  const { productId } = req.params;
+  const { newOwnerId } = transferOwnershipSchema.parse(req.body);
+  const userId = req.user?.id;
+  const updatedProduct = await productService.transferProductOwnership(
+    productId,
+    newOwnerId,
+    userId,
+  );
+  return sendSuccess(res, updatedProduct, 'Product ownership transferred');
+};
+
+export const getProductOwnershipHistory = async (req: Request, res: Response) => {
+  const { productId } = req.params;
+  const history = await productService.getProductOwnershipHistory(productId);
+  return sendSuccess(res, history, 'Product ownership history');
+};
+
 export const generatePresignedUrls = async (req: Request, res: Response) => {
   const { productId } = req.params;
   const { fileNames } = generatePresignedUrlsSchema.parse(req.body);

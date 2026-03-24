@@ -19,6 +19,7 @@ model User {
 
   contactPreference UserContactPreference?
   products          Product[] @relation("OwnerProducts")
+  ownershipHistory  ProductOwnershipHistory[]
 }
 
 model Category {
@@ -54,6 +55,7 @@ model Product {
 
   owner    User     @relation("OwnerProducts", fields: [currentOwnerId], references: [id])
   category Category? @relation(fields: [categoryId], references: [id])
+  ownershipHistory ProductOwnershipHistory[]
 }
 
 model ProductImage {
@@ -67,6 +69,17 @@ model ProductImage {
   createdAt  DateTime @default(now())
 
   product    Product  @relation(fields: [productId], references: [id])
+}
+
+model ProductOwnershipHistory {
+  id          String   @id @default(uuid())
+  productId   String
+  ownerId     String
+  acquiredAt  DateTime @default(now())
+  releasedAt  DateTime?
+
+  product Product @relation(fields: [productId], references: [id])
+  owner   User    @relation(fields: [ownerId], references: [id])
 }
 
 model UserContactPreference {

@@ -93,3 +93,36 @@ export const deleteProductImageById = async (id: string) => {
 export const deleteProductById = async (id: string) => {
   return prisma.product.delete({ where: { id } });
 };
+
+export const createProductOwnershipHistory = async (productId: string, ownerId: string) => {
+  return prisma.productOwnershipHistory.create({
+    data: {
+      productId,
+      ownerId,
+      acquiredAt: new Date(),
+    },
+  });
+};
+
+export const closeProductOwnershipHistory = async (
+  productId: string,
+  releasedAt: Date = new Date(),
+) => {
+  return prisma.productOwnershipHistory.updateMany({
+    where: {
+      productId,
+      releasedAt: null,
+    },
+    data: {
+      releasedAt,
+    },
+  });
+};
+
+export const getProductOwnershipHistory = async (productId: string) => {
+  return prisma.productOwnershipHistory.findMany({
+    where: { productId },
+    orderBy: { acquiredAt: 'desc' },
+    include: { owner: true },
+  });
+};

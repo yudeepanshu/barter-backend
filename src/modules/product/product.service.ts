@@ -1,4 +1,3 @@
-import sharp from 'sharp';
 import path from 'path';
 import prisma from '../../config/db';
 import { AppError } from '../../common/errors/AppError';
@@ -6,8 +5,6 @@ import { S3BlobStorage } from './senders/s3Storage';
 import * as repo from './product.repository';
 import { CreateProductInput } from './product.schema';
 
-const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
-const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB per image
 const storage = new S3BlobStorage();
 
 export const createProduct = async (data: CreateProductInput, userId?: string) => {
@@ -26,7 +23,13 @@ export const createProduct = async (data: CreateProductInput, userId?: string) =
   const productData = { ...data, currentOwnerId: userId } as CreateProductInput & {
     currentOwnerId: string;
   };
-  return repo.createProduct(productData);
+
+  const product = await repo.createProduct(productData);
+
+  // Record initial ownership history
+  await repo.createProductOwnershipHistory(product.id, userId);
+
+  return product;
 };
 
 export const getProductById = async (productId: string) => {
@@ -35,6 +38,38 @@ export const getProductById = async (productId: string) => {
     throw new AppError('Product not found', 404);
   }
   return product;
+};
+
+export const transferProductOwnership = async (
+  productId: string,
+  newOwnerId: string,
+  userId: string,
+) => {
+  const product = await getProductById(productId);
+  if (product.currentOwnerId !== userId) {
+    throw new AppError('You can only transfer your own product', 403);
+  }
+
+  if (newOwnerId === userId) {
+    throw new AppError('New owner must be different from current owner', 400);
+  }
+
+  await repo.closeProductOwnershipHistory(productId);
+
+  const updated = await prisma.product.update({
+    where: { id: productId },
+    data: { currentOwnerId: newOwnerId },
+    include: { productImages: true, category: true },
+  });
+
+  await repo.createProductOwnershipHistory(productId, newOwnerId);
+
+  return updated;
+};
+
+export const getProductOwnershipHistory = async (productId: string) => {
+  await getProductById(productId); // ensure product exists
+  return repo.getProductOwnershipHistory(productId);
 };
 
 export const getProducts = async (filters: {

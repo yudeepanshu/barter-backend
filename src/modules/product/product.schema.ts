@@ -36,6 +36,10 @@ export const addProductImagesSchema = z.object({
     .max(6),
 });
 
+export const transferOwnershipSchema = z.object({
+  newOwnerId: z.string().uuid(),
+});
+
 export const queryProductsSchema = z.object({
   status: z.enum(['ACTIVE', 'RESERVED', 'EXCHANGED', 'REMOVED']).optional(),
   categoryId: z.string().uuid().optional(),

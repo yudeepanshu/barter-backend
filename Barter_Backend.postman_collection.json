@@ -412,6 +412,66 @@
           }
         },
         {
+          "name": "Transfer Product Ownership",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"newOwnerId\": \"770e8400-e29b-41d4-a716-446655440003\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products/660e8400-e29b-41d4-a716-446655440001/ownership",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "660e8400-e29b-41d4-a716-446655440001",
+                "ownership"
+              ]
+            },
+            "description": "Transfer product ownership (PROTECTED, only current owner can call)\n\nRequest Body:\n- newOwnerId: UUID of new owner"
+          }
+        },
+        {
+          "name": "Get Product Ownership History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/660e8400-e29b-41d4-a716-446655440001/ownership-history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "660e8400-e29b-41d4-a716-446655440001",
+                "ownership-history"
+              ]
+            },
+            "description": "Get ownership history of a product (PROTECTED)"
+          }
+        },
+        {
           "name": "Delete Product",
           "request": {
             "method": "DELETE",

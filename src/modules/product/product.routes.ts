@@ -18,6 +18,16 @@ router.post(
   asyncHandler(productController.generatePresignedUrls),
 );
 router.post('/:id/images', protect, asyncHandler(productController.addProductImages));
+router.patch(
+  '/:productId/ownership',
+  protect,
+  asyncHandler(productController.transferProductOwnership),
+);
+router.get(
+  '/:productId/ownership-history',
+  protect,
+  asyncHandler(productController.getProductOwnershipHistory),
+);
 router.delete(
   '/:productId/images/:imageId',
   protect,

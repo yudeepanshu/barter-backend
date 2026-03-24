@@ -56,6 +56,9 @@ model Product {
   owner    User     @relation("OwnerProducts", fields: [currentOwnerId], references: [id])
   category Category? @relation(fields: [categoryId], references: [id])
   ownershipHistory ProductOwnershipHistory[]
+
+  @@index([status, isListed, createdAt, id], name: "product_list_cursor_idx")
+  @@index([latitude, longitude], name: "product_location_idx")
 }
 
 model ProductImage {

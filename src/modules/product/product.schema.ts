@@ -45,6 +45,11 @@ export const queryProductsSchema = z.object({
   categoryId: z.string().uuid().optional(),
   ownerId: z.string().uuid().optional(),
   search: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(20),
+  cursor: z.string().optional(),
+  locationLat: z.coerce.number().optional(),
+  locationLng: z.coerce.number().optional(),
+  radiusKm: z.coerce.number().min(0.1).max(100).optional(),
 });
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;

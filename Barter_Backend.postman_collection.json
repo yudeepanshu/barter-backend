@@ -252,7 +252,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/products?status=ACTIVE",
+              "raw": "{{baseUrl}}/api/products?status=ACTIVE&limit=20",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -280,10 +280,35 @@
                   "key": "search",
                   "value": "",
                   "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "locationLat",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "locationLng",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "radiusKm",
+                  "value": "",
+                  "disabled": true
                 }
               ]
             },
-            "description": "Get all products with optional filters (PUBLIC)\n\nQuery Parameters (all optional):\n- status: ACTIVE | RESERVED | EXCHANGED | REMOVED\n- categoryId: UUID\n- ownerId: UUID\n- search: Search term for title or description"
+            "description": "Get all products with optional filters (PUBLIC)\n\nQuery Parameters (all optional):\n- status: ACTIVE | RESERVED | EXCHANGED | REMOVED\n- categoryId: UUID\n- ownerId: UUID\n- search: Search term for title or description\n- limit: integer (1..100, default 20)\n- cursor: string (base64 token for next page)\n- locationLat, locationLng, radiusKm: for local filtering\n\nResponse format:\n{\n  items: [product],\n  nextCursor: string|null,\n  hasMore: boolean\n}"
           }
         },
         {
@@ -521,6 +546,158 @@
               ]
             },
             "description": "Delete a specific image from a product (PROTECTED)\n\nPath Parameters:\n- productId: UUID of the product\n- imageId: UUID of the image to delete\n\nNote: Only product owner can delete images from their products"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Product Discovery",
+      "item": [
+        {
+          "name": "Get Discovery Feed (Global)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/products?status=ACTIVE&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "ACTIVE",
+                  "disabled": false
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "disabled": false
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Base64 pagination token from previous response nextCursor"
+                },
+                {
+                  "key": "categoryId",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Optional: Filter by category UUID"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Optional: Search term for title/description"
+                }
+              ]
+            },
+            "description": "Get global product discovery feed with cursor-based pagination (PUBLIC)\n\n**Usage Pattern:**\n1. Make initial request without cursor\n2. Receive response with { items, nextCursor, hasMore }\n3. Display items to user (infinite scroll)\n4. When user scrolls near bottom, use nextCursor for next page\n5. Repeat until hasMore = false\n\n**Query Parameters:**\n- status: ACTIVE (default) | RESERVED | EXCHANGED | REMOVED\n- limit: 1-100 (default: 20)\n- cursor: For pagination, base64 encoded token\n- categoryId: (optional) Filter by category UUID\n- search: (optional) Text search\n\n**Cursor Format:**\nThe cursor is a base64-encoded token containing:\n- createdAt: Product creation timestamp\n- id: Product UUID\n\nDo NOT decode or modify the cursor - use it as-is from nextCursor.\n\n**Response Format:**\n```json\n{\n  \"items\": [{\n    \"id\": \"uuid\",\n    \"title\": \"Product Title\",\n    \"description\": \"...\",\n    \"status\": \"ACTIVE\",\n    \"categoryId\": \"uuid\",\n    \"currentOwnerId\": \"uuid\",\n    \"latitude\": 40.7128,\n    \"longitude\": -74.0060,\n    \"locationName\": \"New York, NY\",\n    \"isPreOwned\": true,\n    \"createdAt\": \"2026-03-25T10:30:00Z\",\n    \"images\": [{ \"url\": \"https://...\", \"isPrimary\": true }]\n  }],\n  \"nextCursor\": \"eyJjcmVhdGVkQXQiOiIyMDI2LTAzLTI1VDEwOjMwOjAwWiIsImlkIjoiNjYwZTg0MDAifQ==\",\n  \"hasMore\": true\n}\n```\n\n**Performance Notes:**\n- First page (no cursor) is cached for 30 seconds\n- Uses database indexes on status, createdAt, id\n- Cursor ensures consistent ordering across pages\n- No limit offset issues (common with large offsets)"
+          }
+        },
+        {
+          "name": "Get Discovery Feed (Location Nearest)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/products?status=ACTIVE&limit=20&locationLat=40.7128&locationLng=-74.0060&radiusKm=25",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "ACTIVE",
+                  "disabled": false
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "disabled": false
+                },
+                {
+                  "key": "locationLat",
+                  "value": "40.7128",
+                  "disabled": false,
+                  "description": "User latitude (required for location search)"
+                },
+                {
+                  "key": "locationLng",
+                  "value": "-74.0060",
+                  "disabled": false,
+                  "description": "User longitude (required for location search)"
+                },
+                {
+                  "key": "radiusKm",
+                  "value": "25",
+                  "disabled": false,
+                  "description": "Search radius in kilometers (default: 25)"
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Base64 pagination token from previous response"
+                },
+                {
+                  "key": "categoryId",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Optional: Filter by category"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Optional: Search term"
+                }
+              ]
+            },
+            "description": "Get location-aware product discovery feed (\"near me\" mode) (PUBLIC)\n\n**Usage Pattern:**\n1. Get user's current GPS coordinates (latitude, longitude)\n2. Make request with locationLat, locationLng, radiusKm\n3. Products within radius are returned, sorted by distance (nearest first)\n4. Use cursor for pagination as with global feed\n5. Items maintain distance ranking across pages\n\n**Query Parameters:**\n- status: ACTIVE (default) | RESERVED | EXCHANGED | REMOVED\n- limit: 1-100 (default: 20)\n- locationLat: User's latitude (REQUIRED for location mode)\n- locationLng: User's longitude (REQUIRED for location mode)\n- radiusKm: Search radius in km (default: 25, recommended: 5-50)\n- cursor: For pagination in location results\n- categoryId, search: Optional filters\n\n**Location Algorithm:**\n1. Bounding box filter: Finds products in rough lat/lng range (fast DB lookup)\n2. Haversine distance calculation: Precise distance from user to each product\n3. Sort: By distance ASC, then by createdAt DESC (newest items at same distance first)\n4. Pagination: Cursor prevents duplicate results across pages\n\n**Response Format:**\n```json\n{\n  \"items\": [{\n    \"id\": \"uuid\",\n    \"title\": \"Vintage Camera\",\n    \"description\": \"...\",\n    \"status\": \"ACTIVE\",\n    \"categoryId\": \"uuid\",\n    \"currentOwnerId\": \"uuid\",\n    \"latitude\": 40.7150,\n    \"longitude\": -74.0055,\n    \"locationName\": \"Manhattan, New York\",\n    \"distance_km\": 0.35,\n    \"isPreOwned\": true,\n    \"createdAt\": \"2026-03-25T10:30:00Z\",\n    \"images\": [{ \"url\": \"https://...\", \"isPrimary\": true }]\n  }],\n  \"nextCursor\": \"eyJjcmVhdGVkQXQiOiIyMDI2LTAzLTI1VDEwOjMwOjAwWiIsImlkIjoiNjYwZTg0MDAifQ==\",\n  \"hasMore\": true\n}\n```\n\n**Distance Calculation:**\n- Uses Haversine formula for great-circle distance\n- Accurate for typical barter scenarios (local region)\n- Returns approximate distance in response items\n\n**Example Coordinates:**\n- New York, NY: 40.7128, -74.0060\n- San Francisco, CA: 37.7749, -122.4194\n- Austin, TX: 30.2672, -97.7431\n- Seattle, WA: 47.6062, -122.3321\n\n**Performance Notes:**\n- Database index on latitude, longitude for fast bounding box\n- Haversine calculation done in-memory (efficient)\n- Results sorted by distance for UX\n- Cache NOT used (location queries are user-specific)"
+          }
+        },
+        {
+          "name": "📖 Client Implementation Examples",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products"
+              ]
+            },
+            "description": "DOCUMENTATION ONLY - Reference implementation for infinite scroll on web/mobile clients\n\n---\n## JavaScript (Browser) - Global Feed with Infinite Scroll\n\n```javascript\nclass ProductDiscoveryFeed {\n  constructor() {\n    this.products = [];\n    this.nextCursor = null;\n    this.hasMore = true;\n    this.isLoading = false;\n    this.baseUrl = 'http://localhost:8000/api';\n  }\n\n  async fetchGlobalFeed(limit = 20) {\n    if (this.isLoading) return;\n    if (!this.hasMore) return;\n\n    this.isLoading = true;\n    try {\n      const url = new URL(`${this.baseUrl}/products`);\n      url.searchParams.set('status', 'ACTIVE');\n      url.searchParams.set('limit', limit);\n      \n      if (this.nextCursor) {\n        url.searchParams.set('cursor', this.nextCursor);\n      }\n\n      const response = await fetch(url);\n      const data = await response.json();\n\n      // Append new items to list\n      this.products.push(...data.items);\n      this.nextCursor = data.nextCursor;\n      this.hasMore = data.hasMore;\n\n      this.renderProducts();\n    } catch (error) {\n      console.error('Failed to fetch products:', error);\n    } finally {\n      this.isLoading = false;\n    }\n  }\n\n  async fetchLocationFeed(latitude, longitude, radiusKm = 25, limit = 20) {\n    if (this.isLoading) return;\n    if (!this.hasMore) return;\n\n    this.isLoading = true;\n    try {\n      const url = new URL(`${this.baseUrl}/products`);\n      url.searchParams.set('status', 'ACTIVE');\n      url.searchParams.set('locationLat', latitude);\n      url.searchParams.set('locationLng', longitude);\n      url.searchParams.set('radiusKm', radiusKm);\n      url.searchParams.set('limit', limit);\n      \n      if (this.nextCursor) {\n        url.searchParams.set('cursor', this.nextCursor);\n      }\n\n      const response = await fetch(url);\n      const data = await response.json();\n\n      this.products.push(...data.items);\n      this.nextCursor = data.nextCursor;\n      this.hasMore = data.hasMore;\n\n      this.renderProducts();\n    } catch (error) {\n      console.error('Failed to fetch location products:', error);\n    } finally {\n      this.isLoading = false;\n    }\n  }\n\n  renderProducts() {\n    const container = document.getElementById('products-container');\n    container.innerHTML = this.products.map(product => `\n      <div class=\"product-card\">\n        <img src=\"${product.images[0]?.url}\" alt=\"${product.title}\">\n        <h3>${product.title}</h3>\n        <p>${product.description}</p>\n        <span class=\"location\">${product.locationName}</span>\n      </div>\n    `).join('');\n  }\n\n  setupInfiniteScroll() {\n    const observer = new IntersectionObserver((entries) => {\n      if (entries[0].isIntersecting && this.hasMore && !this.isLoading) {\n        // Choose global or location-based fetch\n        this.fetchGlobalFeed();\n        // OR for location:\n        // this.fetchLocationFeed(userLat, userLng);\n      }\n    });\n\n    const sentinel = document.getElementById('scroll-sentinel');\n    observer.observe(sentinel);\n  }\n}\n\n// Usage\nconst feed = new ProductDiscoveryFeed();\nawait feed.fetchGlobalFeed();\nfeed.setupInfiniteScroll();\n```\n\n---\n## React Hooks - Product Discovery Hook\n\n```javascript\nimport { useState, useEffect, useCallback } from 'react';\n\nfunction useProductDiscovery() {\n  const [products, setProducts] = useState([]);\n  const [cursor, setCursor] = useState(null);\n  const [hasMore, setHasMore] = useState(true);\n  const [isLoading, setIsLoading] = useState(false);\n\n  const fetchGlobalFeed = useCallback(async () => {\n    if (isLoading && !hasMore) return;\n\n    setIsLoading(true);\n    try {\n      const url = new URL('http://localhost:8000/api/products');\n      url.searchParams.set('status', 'ACTIVE');\n      url.searchParams.set('limit', '20');\n      if (cursor) url.searchParams.set('cursor', cursor);\n\n      const response = await fetch(url);\n      const data = await response.json();\n\n      setProducts(prev => [...prev, ...data.items]);\n      setCursor(data.nextCursor);\n      setHasMore(data.hasMore);\n    } finally {\n      setIsLoading(false);\n    }\n  }, [cursor, isLoading, hasMore]);\n\n  const fetchLocationFeed = useCallback(\n    async (latitude, longitude, radiusKm = 25) => {\n      if (isLoading && !hasMore) return;\n\n      setIsLoading(true);\n      try {\n        const url = new URL('http://localhost:8000/api/products');\n        url.searchParams.set('status', 'ACTIVE');\n        url.searchParams.set('locationLat', latitude);\n        url.searchParams.set('locationLng', longitude);\n        url.searchParams.set('radiusKm', radiusKm);\n        url.searchParams.set('limit', '20');\n        if (cursor) url.searchParams.set('cursor', cursor);\n\n        const response = await fetch(url);\n        const data = await response.json();\n\n        setProducts(prev => [...prev, ...data.items]);\n        setCursor(data.nextCursor);\n        setHasMore(data.hasMore);\n      } finally {\n        setIsLoading(false);\n      }\n    },\n    [cursor, isLoading, hasMore]\n  );\n\n  return {\n    products,\n    hasMore,\n    isLoading,\n    fetchGlobalFeed,\n    fetchLocationFeed,\n    reset: () => {\n      setProducts([]);\n      setCursor(null);\n      setHasMore(true);\n    }\n  };\n}\n\n// Usage in component\nfunction DiscoveryFeed() {\n  const { products, hasMore, isLoading, fetchGlobalFeed } = useProductDiscovery();\n  const observerTarget = useRef(null);\n\n  useEffect(() => {\n    const observer = new IntersectionObserver(([entry]) => {\n      if (entry.isIntersecting && hasMore && !isLoading) {\n        fetchGlobalFeed();\n      }\n    });\n\n    if (observerTarget.current) {\n      observer.observe(observerTarget.current);\n    }\n\n    return () => observer.disconnect();\n  }, [hasMore, isLoading, fetchGlobalFeed]);\n\n  useEffect(() => {\n    fetchGlobalFeed();\n  }, []);\n\n  return (\n    <div>\n      {products.map(product => (\n        <ProductCard key={product.id} product={product} />\n      ))}\n      {isLoading && <Spinner />}\n      <div ref={observerTarget} />\n    </div>\n  );\n}\n```\n\n---\n## React Native / Flutter - Location-Based Discovery\n\n**Note:** Both platforms have built-in geolocation APIs:\n- React Native: `react-native-geolocation-service` or Expo's Location\n- Flutter: `geolocator` package\n\n```javascript\n// React Native Example\nimport Geolocation from 'react-native-geolocation-service';\n\nfunction LocationBasedFeed() {\n  const [currentLocation, setCurrentLocation] = useState(null);\n\n  useEffect(() => {\n    Geolocation.getCurrentPosition(\n      position => {\n        setCurrentLocation({\n          latitude: position.coords.latitude,\n          longitude: position.coords.longitude\n        });\n      },\n      error => console.log(error),\n      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }\n    );\n  }, []);\n\n  if (!currentLocation) return <LoadingScreen />;\n\n  return (\n    <LocationFeedScreen\n      latitude={currentLocation.latitude}\n      longitude={currentLocation.longitude}\n      radiusKm={25}\n    />\n  );\n}\n```\n\n---\n## Database Query Internals (Server-Side)\n\n**Global Feed Query:**\n```sql\nSELECT * FROM \"Product\"\nWHERE status = 'ACTIVE'\n  AND (createdAt < $1 OR (createdAt = $1 AND id < $2))  -- Cursor condition\nORDER BY createdAt DESC, id DESC\nLIMIT 21  -- Fetch limit+1 to check hasMore\n```\n\n**Location-Based Query:**\n```sql\nSELECT *,\n  (6371 * acos(cos(radians($1)) * cos(radians(latitude)) * cos(radians(longitude) - radians($2)) + sin(radians($1)) * sin(radians(latitude)))) AS distance\nFROM \"Product\"\nWHERE status = 'ACTIVE'\n  AND latitude BETWEEN $1 - ($3 / 111) AND $1 + ($3 / 111)  -- Bounding box\n  AND longitude BETWEEN $2 - ($3 / (111 * cos(radians($1)))) AND $2 + ($3 / (111 * cos(radians($1))))\n  AND (createdAt < $4 OR (createdAt = $4 AND id < $5))  -- Cursor\nORDER BY distance ASC, createdAt DESC\nLIMIT 21\n```\n\n**Indexes Used:**\n- `product_list_cursor_idx(status, isListed, createdAt, id)` for global feed\n- `product_location_idx(latitude, longitude)` for location queries\n\n---\n## Performance Tips\n\n1. **Caching (Client):** Store first page results locally for 30 seconds\n2. **Pagination:** Always use cursor from response, never skip/offset\n3. **Location:** Request at ~60s intervals, not on every render\n4. **Limit:** Use 15-25 items per page for optimal UX\n5. **Error Recovery:** Clear cursor on network error, restart from first page\n6. **Search:** Combine with cursor for filtered infinite scroll"
           }
         }
       ]

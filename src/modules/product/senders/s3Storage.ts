@@ -1,5 +1,6 @@
 import { BlobStorage } from './interface';
 import { PutObjectCommand, DeleteObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const bucket = process.env.S3_BUCKET_NAME;
 const region = process.env.S3_REGION || 'us-east-1';
@@ -45,5 +46,26 @@ export class S3BlobStorage implements BlobStorage {
       Key: key,
     });
     await s3Client.send(command);
+  }
+
+  async getPresignedUrl({
+    key,
+    contentType,
+    expiresIn = 3600,
+  }: {
+    key: string;
+    contentType: string;
+    expiresIn?: number;
+  }) {
+    const command = new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      ContentType: contentType,
+      ACL: 'public-read',
+    });
+
+    const signedUrl = await getSignedUrl(s3Client, command, { expiresIn });
+    const publicUrl = `https://${bucket}.s3.${region}.amazonaws.com/${encodeURIComponent(key)}`;
+    return { signedUrl, publicUrl, key };
   }
 }

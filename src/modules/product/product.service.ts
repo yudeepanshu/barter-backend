@@ -1,4 +1,3 @@
-import 'multer';
 import sharp from 'sharp';
 import path from 'path';
 import prisma from '../../config/db';
@@ -69,90 +68,6 @@ export const deleteProduct = async (productId: string, userId: string) => {
   return repo.deleteProductById(productId);
 };
 
-export const uploadProductImages = async (
-  productId: string,
-  files: Express.Multer.File[],
-  userId: string,
-) => {
-  const product = await repo.findProductById(productId);
-  if (!product) throw new AppError('Product not found', 404);
-
-  // Check if user is the owner
-  if (product.currentOwnerId !== userId) {
-    throw new AppError('You can only upload images to your own products', 403);
-  }
-
-  if (files.length === 0) {
-    throw new AppError('No images uploaded', 400);
-  }
-
-  if (files.length > 6) {
-    throw new AppError('You can upload maximum 6 images per request', 400);
-  }
-
-  const uploadResults: Array<{
-    url: string;
-    storageKey: string;
-    isPrimary: boolean;
-    width?: number;
-    height?: number;
-  }> = [];
-
-  for (let idx = 0; idx < files.length; idx += 1) {
-    const file = files[idx];
-    if (!allowedMimeTypes.includes(file.mimetype)) {
-      throw new AppError('Invalid file type. Only JPEG, PNG, WebP are allowed.', 400);
-    }
-    if (file.size > MAX_SIZE_BYTES) {
-      throw new AppError('Each image must be smaller than 10MB', 400);
-    }
-
-    let buffer = file.buffer;
-
-    try {
-      const sharpImage = sharp(buffer).withMetadata();
-
-      const metadata = await sharpImage.metadata();
-
-      if (
-        (metadata.width && metadata.width > 2048) ||
-        (metadata.height && metadata.height > 2048) ||
-        file.size > 2 * 1024 * 1024
-      ) {
-        buffer = await sharpImage
-          .resize({ width: 2048, height: 2048, fit: 'inside', withoutEnlargement: true })
-          .toFormat('jpeg', { quality: 80 })
-          .toBuffer();
-      } else {
-        buffer = await sharpImage.toFormat('jpeg', { quality: 85 }).toBuffer();
-      }
-
-      const finalMeta = await sharp(buffer).metadata();
-      const extension = path.extname(file.originalname).toLowerCase() || '.jpg';
-      const key = `products/${productId}/${Date.now()}-${Math.random().toString(36).slice(2)}${extension}`;
-
-      const { url, key: storageKey } = await storage.uploadFile({
-        key,
-        buffer,
-        contentType: 'image/jpeg',
-      });
-      uploadResults.push({
-        url,
-        storageKey,
-        isPrimary: idx === 0,
-        width: finalMeta.width,
-        height: finalMeta.height,
-      });
-    } catch (err) {
-      throw new AppError('Failed to process image upload', 500);
-    }
-  }
-
-  const savedImages = await repo.addProductImages(productId, uploadResults);
-
-  return savedImages;
-};
-
 export const deleteProductImage = async (imageId: string, userId: string) => {
   const image = await prisma.productImage.findUnique({
     where: { id: imageId },
@@ -171,4 +86,76 @@ export const deleteProductImage = async (imageId: string, userId: string) => {
   await storage.deleteFile(image.storageKey);
 
   return repo.deleteProductImageById(imageId);
+};
+
+export const generatePresignedUrls = async (
+  productId: string,
+  fileNames: string[],
+  userId: string,
+) => {
+  const product = await repo.findProductById(productId);
+  if (!product) throw new AppError('Product not found', 404);
+
+  // Check if user is the owner
+  if (product.currentOwnerId !== userId) {
+    throw new AppError('You can only upload images to your own products', 403);
+  }
+
+  if (fileNames.length === 0 || fileNames.length > 6) {
+    throw new AppError('You must provide 1-6 file names', 400);
+  }
+
+  const urls = [];
+  for (const fileName of fileNames) {
+    // Validate file extension
+    const ext = path.extname(fileName).toLowerCase();
+    if (!['.jpg', '.jpeg', '.png', '.webp'].includes(ext)) {
+      throw new AppError('Invalid file type. Only JPEG, PNG, WebP are allowed.', 400);
+    }
+
+    const key = `products/${productId}/${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
+    const {
+      signedUrl,
+      publicUrl,
+      key: storageKey,
+    } = await storage.getPresignedUrl({
+      key,
+      contentType: `image/${ext.slice(1)}`,
+    });
+
+    urls.push({ signedUrl, publicUrl, storageKey, fileName });
+  }
+
+  return urls;
+};
+
+export const addProductImagesFromUpload = async (
+  productId: string,
+  imageData: Array<{ storageKey: string; url: string; isPrimary: boolean }>,
+  userId: string,
+) => {
+  const product = await repo.findProductById(productId);
+  if (!product) throw new AppError('Product not found', 404);
+
+  // Check if user is the owner
+  if (product.currentOwnerId !== userId) {
+    throw new AppError('You can only add images to your own products', 403);
+  }
+
+  if (imageData.length === 0 || imageData.length > 6) {
+    throw new AppError('You must provide 1-6 images', 400);
+  }
+
+  // Optionally, verify the files exist in S3, but for simplicity, assume they do
+
+  const savedImages = await repo.addProductImages(
+    productId,
+    imageData.map((data) => ({
+      url: data.url,
+      storageKey: data.storageKey,
+      isPrimary: data.isPrimary,
+    })),
+  );
+
+  return savedImages;
 };

@@ -19,6 +19,23 @@ export const uploadProductImagesSchema = z.object({
   productId: z.string().uuid(),
 });
 
+export const generatePresignedUrlsSchema = z.object({
+  fileNames: z.array(z.string().min(1)).min(1).max(6),
+});
+
+export const addProductImagesSchema = z.object({
+  images: z
+    .array(
+      z.object({
+        storageKey: z.string(),
+        url: z.string().url(),
+        isPrimary: z.boolean().optional().default(false),
+      }),
+    )
+    .min(1)
+    .max(6),
+});
+
 export const queryProductsSchema = z.object({
   status: z.enum(['ACTIVE', 'RESERVED', 'EXCHANGED', 'REMOVED']).optional(),
   categoryId: z.string().uuid().optional(),

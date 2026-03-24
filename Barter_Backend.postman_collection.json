@@ -343,10 +343,14 @@
           }
         },
         {
-          "name": "Upload Product Images",
+          "name": "Generate Pre-signed URLs for Images",
           "request": {
             "method": "POST",
             "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
               {
                 "key": "Authorization",
                 "value": "Bearer {{accessToken}}",
@@ -354,15 +358,43 @@
               }
             ],
             "body": {
-              "mode": "formdata",
-              "formdata": [
-                {
-                  "key": "images",
-                  "type": "file",
-                  "src": [],
-                  "description": "Image file (JPEG, PNG, WebP). Max 6 files per request, max 10MB each"
-                }
+              "mode": "raw",
+              "raw": "{\n  \"fileNames\": [\"image1.jpg\", \"image2.png\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products/660e8400-e29b-41d4-a716-446655440001/images/presigned",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "660e8400-e29b-41d4-a716-446655440001",
+                "images",
+                "presigned"
               ]
+            },
+            "description": "Generate pre-signed URLs for direct S3 image uploads (PROTECTED - requires auth)\n\nRequest Body:\n- fileNames: Array of strings (1-6 file names with extensions)\n\nResponse: Array of objects with signedUrl, publicUrl, storageKey, fileName\n\nUse the signedUrl to upload files directly to S3. URLs expire in 1 hour."
+          }
+        },
+        {
+          "name": "Add Uploaded Images to Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"images\": [\n    {\n      \"storageKey\": \"products/660e8400-e29b-41d4-a716-446655440001/1234567890-abc123.jpg\",\n      \"url\": \"https://your-bucket.s3.region.amazonaws.com/products/660e8400-e29b-41d4-a716-446655440001/1234567890-abc123.jpg\",\n      \"isPrimary\": true\n    }\n  ]\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/products/660e8400-e29b-41d4-a716-446655440001/images",
@@ -376,7 +408,7 @@
                 "images"
               ]
             },
-            "description": "Upload images for a product (PROTECTED - requires auth)\n\nForm Data:\n- images: File (multipart, multiple allowed)\n\nConstraints:\n- Max 6 images per request\n- Max 10MB per image\n- Allowed types: JPEG, PNG, WebP\n- Images are automatically resized/compressed (max 2048x2048, JPEG quality 80-85)\n- First image is set as primary\n- URLs returned from AWS S3\n\nNote: Only product owner can upload images"
+            "description": "Register uploaded images in the database after direct S3 upload (PROTECTED - requires auth)\n\nRequest Body:\n- images: Array of objects\n  - storageKey: S3 key from pre-signed URL response\n  - url: Public S3 URL\n  - isPrimary: boolean (true for first image)\n\nCall this after successfully uploading to the pre-signed URLs.\n\nNote: Only product owner can add images"
           }
         },
         {

@@ -701,6 +701,154 @@
           }
         }
       ]
+    },
+    {
+      "name": "Requests",
+      "item": [
+        {
+          "name": "Create Product Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"660e8400-e29b-41d4-a716-446655440001\",\n  \"offerType\": \"MIXED\",\n  \"offeredProducts\": [\n    \"660e8400-e29b-41d4-a716-446655440010\",\n    \"660e8400-e29b-41d4-a716-446655440011\"\n  ],\n  \"amount\": 1200,\n  \"visibleProducts\": [\n    \"660e8400-e29b-41d4-a716-446655440012\"\n  ],\n  \"allowProductAccess\": true,\n  \"message\": \"Interested in exchange this week\",\n  \"contactPreference\": \"PHONE\",\n  \"expiresInHours\": 72\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "requests"
+              ]
+            },
+            "description": "Create a product request with offer payload (PROTECTED - requires auth)\n\nOffer modes:\n- PRODUCT: requires offeredProducts only\n- MONEY: requires amount only\n- MIXED: requires both amount + offeredProducts\n\nWorkflow implemented (as in sequence diagram):\n1. Validate payload and offer shape\n2. Fetch target product\n3. Block if product unavailable:\n   - status not in ACTIVE/RESERVED\n   - isListed = false\n   - cooldownUntil > now\n4. Optional FOMO warning if product status is RESERVED\n5. Insert Request (status=PENDING, lifecycleVersion snapshot from Product)\n6. Insert RequestOffer (status=ACTIVE, type + amount)\n7. Insert RequestOfferProduct rows (if offeredProducts provided)\n8. Insert RequestVisibleProduct rows (if visibleProducts provided)\n\nOwnership rules:\n- Buyer cannot request own product\n- offeredProducts and visibleProducts must belong to buyer and be active listed products\n\nResponse shape:\n{\n  request: { ...requestWithOfferAndProducts },\n  warning: string | null,\n  internals: {\n    lifecycleVersionSnapshot: number,\n    requestStatus: \"PENDING\",\n    offerStatus: \"ACTIVE\"\n  }\n}"
+          }
+        },
+        {
+          "name": "Get My Sent Requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/requests/sent?status=PENDING&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "requests",
+                "sent"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "disabled": false
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Use nextCursor from previous response"
+                }
+              ]
+            },
+            "description": "List requests created by the authenticated buyer with cursor pagination (PROTECTED).\n\nQuery:\n- status: PENDING | ACCEPTED | REJECTED | EXPIRED (optional)\n- limit: 1..100 (default 20)\n- cursor: base64 pagination token\n\nResponse:\n{ items: Request[], nextCursor: string|null, hasMore: boolean }"
+          }
+        },
+        {
+          "name": "Get My Received Requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/requests/received?status=PENDING&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "requests",
+                "received"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "disabled": false
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Use nextCursor from previous response"
+                }
+              ]
+            },
+            "description": "List requests received by the authenticated seller with cursor pagination (PROTECTED)."
+          }
+        },
+        {
+          "name": "Get Request By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/requests/770e8400-e29b-41d4-a716-446655440050",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "requests",
+                "770e8400-e29b-41d4-a716-446655440050"
+              ]
+            },
+            "description": "Get single request details with offers, offered products, and visible products (PROTECTED).\n\nAccess: only buyer or seller on that request."
+          }
+        }
+      ]
     }
   ],
   "variable": [

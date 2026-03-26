@@ -46,6 +46,7 @@ export const sendOTP = async (identifier: string) => {
   await redis.set(cooldownKey, '1', 'EX', 30);
 
   // Send OTP
+  console.log(`Generated OTP for ${normalized}: ${otp}`);
   await otpSender.send(normalized, otp);
 };
 

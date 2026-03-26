@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import { config } from '../../../config/env';
+import { AppError } from '../../../common/errors/AppError';
 import { OtpSender } from './interface';
 
 export class EmailOtpSender implements OtpSender {
@@ -7,15 +8,25 @@ export class EmailOtpSender implements OtpSender {
 
   async send(identifier: string, otp: string): Promise<void> {
     try {
-      await this.resend.emails.send({
+      const { error } = await this.resend.emails.send({
         from: config.EMAIL.FROM,
         to: identifier,
         subject: 'Your OTP Code',
         html: `<p>Your OTP code is: <strong>${otp}</strong></p><p>It will expire in 5 minutes.</p>`,
       });
+
+      if (error) {
+        console.error('Email sending failed:', error);
+        throw new AppError(error.message || 'Failed to send OTP email', 502);
+      }
     } catch (error) {
       console.error('Email sending failed:', error);
-      throw new Error('Failed to send OTP email');
+
+      if (error instanceof AppError) {
+        throw error;
+      }
+
+      throw new AppError('Failed to send OTP email', 502);
     }
   }
 }

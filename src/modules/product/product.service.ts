@@ -102,7 +102,7 @@ const distanceKm = (lat1: number, lng1: number, lat2: number, lng2: number) => {
 
 const getCacheKey = (query: QueryProductsInput) => {
   const keyObj = {
-    status: query.status ?? 'ACTIVE',
+    status: query.status ?? 'ACTIVE,RESERVED',
     categoryId: query.categoryId ?? '',
     ownerId: query.ownerId ?? '',
     search: query.search ?? '',
@@ -116,7 +116,6 @@ const getCacheKey = (query: QueryProductsInput) => {
 
 export const getProducts = async (filters: QueryProductsInput) => {
   const limit = Math.min(filters.limit ?? 20, 100);
-  const statusValue = filters.status ?? 'ACTIVE';
 
   const useCache = !filters.cursor;
   const cacheKey = useCache ? getCacheKey(filters) : null;
@@ -129,7 +128,7 @@ export const getProducts = async (filters: QueryProductsInput) => {
   }
 
   const where: any = {
-    status: statusValue,
+    status: filters.status ? filters.status : { in: ['ACTIVE', 'RESERVED'] },
     isListed: true,
   };
 

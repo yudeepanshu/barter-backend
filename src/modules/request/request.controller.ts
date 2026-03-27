@@ -1,7 +1,13 @@
 import { Request, Response } from 'express';
 import { sendSuccess } from '../../common/utils/responseHandler';
 import * as requestService from './request.service';
-import { createRequestSchema, listRequestsQuerySchema } from './request.schema';
+import {
+  cancelRequestSchema,
+  createCounterOfferSchema,
+  createRequestSchema,
+  listRequestsQuerySchema,
+  requestIdParamSchema,
+} from './request.schema';
 
 export const createRequest = async (req: Request, res: Response) => {
   const payload = createRequestSchema.parse(req.body);
@@ -11,10 +17,47 @@ export const createRequest = async (req: Request, res: Response) => {
 };
 
 export const getRequestById = async (req: Request, res: Response) => {
-  const requestId = req.params.id;
+  const { id: requestId } = requestIdParamSchema.parse(req.params);
   const userId = req.user?.id;
   const request = await requestService.getRequestById(requestId, userId);
   return sendSuccess(res, request);
+};
+
+export const getRequestOffers = async (req: Request, res: Response) => {
+  const { id: requestId } = requestIdParamSchema.parse(req.params);
+  const userId = req.user?.id;
+  const offers = await requestService.getRequestOffers(requestId, userId);
+  return sendSuccess(res, offers);
+};
+
+export const createCounterOffer = async (req: Request, res: Response) => {
+  const { id: requestId } = requestIdParamSchema.parse(req.params);
+  const payload = createCounterOfferSchema.parse(req.body);
+  const userId = req.user?.id;
+  const result = await requestService.createCounterOffer(requestId, payload, userId);
+  return sendSuccess(res, result, 'Counter offer created', 201);
+};
+
+export const acceptRequest = async (req: Request, res: Response) => {
+  const { id: requestId } = requestIdParamSchema.parse(req.params);
+  const userId = req.user?.id;
+  const result = await requestService.acceptRequest(requestId, userId);
+  return sendSuccess(res, result, 'Request accepted');
+};
+
+export const rejectRequest = async (req: Request, res: Response) => {
+  const { id: requestId } = requestIdParamSchema.parse(req.params);
+  const userId = req.user?.id;
+  const result = await requestService.rejectRequest(requestId, userId);
+  return sendSuccess(res, result, 'Request rejected');
+};
+
+export const cancelRequest = async (req: Request, res: Response) => {
+  const { id: requestId } = requestIdParamSchema.parse(req.params);
+  const payload = cancelRequestSchema.parse(req.body);
+  const userId = req.user?.id;
+  const result = await requestService.cancelRequest(requestId, payload, userId);
+  return sendSuccess(res, result, 'Request cancelled');
 };
 
 export const getSentRequests = async (req: Request, res: Response) => {

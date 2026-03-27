@@ -20,7 +20,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"identifier\": \"user@example.com\"\n}"
+              "raw": "{\n  \"identifier\": \"{{currentUser}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/auth/request-otp",
@@ -38,6 +38,55 @@
         },
         {
           "name": "Verify OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Post-response script: capture tokens (if returned)",
+                  "let requestBody = null;",
+                  "try {",
+                  "  requestBody = pm.request.body?.raw ? JSON.parse(pm.request.body.raw) : null;",
+                  "} catch (e) {",
+                  "  requestBody = null;",
+                  "}",
+                  "",
+                  "let json;",
+                  "try {",
+                  "  json = pm.response.json();",
+                  "} catch (e) {",
+                  "  json = null;",
+                  "}",
+                  "",
+                  "const identifier = requestBody?.identifier;",
+                  "const accessToken = json?.data?.tokens?.accessToken;",
+                  "const refreshToken = json?.data?.tokens?.refreshToken;",
+                  "",
+                  "if (identifier && String(identifier).trim()) {",
+                  "  pm.environment.set('currentUser', String(identifier).trim());",
+                  "  pm.collectionVariables.set('currentUser', String(identifier).trim());",
+                  "}",
+                  "",
+                  "if (accessToken && String(accessToken).trim()) {",
+                  "  pm.environment.set('accessToken', String(accessToken).trim());",
+                  "  // collection fallback",
+                  "  pm.collectionVariables.set('accessToken', String(accessToken).trim());",
+                  "}",
+                  "",
+                  "if (refreshToken && String(refreshToken).trim()) {",
+                  "  pm.environment.set('refreshToken', String(refreshToken).trim());",
+                  "  pm.collectionVariables.set('refreshToken', String(refreshToken).trim());",
+                  "}",
+                  "",
+                  "pm.test('Tokens captured (non-blocking)', () => {",
+                  "  const hasAccess = !!(accessToken && String(accessToken).trim());",
+                  "  pm.expect(true, hasAccess ? 'accessToken saved to variables' : `No accessToken in response (status ${pm.response.code})`).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -48,7 +97,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"identifier\": \"user@example.com\",\n  \"code\": \"123456\"\n}"
+              "raw": "{\n  \"identifier\": \"{{currentUser}}\",\n  \"code\": \"123456\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/auth/verify-otp",
@@ -71,6 +120,36 @@
       "item": [
         {
           "name": "Get User Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json;",
+                  "try {",
+                  "  json = pm.response.json();",
+                  "} catch (e) {",
+                  "  json = null;",
+                  "}",
+                  "",
+                  "const data = json?.data?.user ?? json?.data ?? null;",
+                  "const userId = data?.id;",
+                  "const email = data?.email;",
+                  "const phone = data?.phone;",
+                  "",
+                  "if (userId) pm.environment.set('currentUserId', String(userId));",
+                  "if (email) pm.environment.set('currentUserEmail', String(email));",
+                  "if (phone) pm.environment.set('currentUserPhone', String(phone));",
+                  "if (email) pm.environment.set('currentUser', String(email));",
+                  "",
+                  "pm.test('Current user context captured (non-blocking)', () => {",
+                  "  pm.expect(true).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [
@@ -322,14 +401,14 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/products/660e8400-e29b-41d4-a716-446655440001",
+              "raw": "{{baseUrl}}/api/products/{{currentProductId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "products",
-                "660e8400-e29b-41d4-a716-446655440001"
+                "{{currentProductId}}"
               ]
             },
             "description": "Get a single product by ID with all images (PUBLIC)"
@@ -337,6 +416,34 @@
         },
         {
           "name": "Create Product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json;",
+                  "try {",
+                  "  json = pm.response.json();",
+                  "} catch (e) {",
+                  "  json = null;",
+                  "}",
+                  "",
+                  "const product = json?.data?.product ?? json?.data ?? null;",
+                  "const productId = product?.id;",
+                  "",
+                  "if (productId) {",
+                  "  pm.environment.set('currentProductId', String(productId));",
+                  "  pm.collectionVariables.set('currentProductId', String(productId));",
+                  "}",
+                  "",
+                  "pm.test('Current product captured (non-blocking)', () => {",
+                  "  pm.expect(true).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -352,7 +459,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Vintage Camera\",\n  \"description\": \"A beautiful vintage camera in good condition\",\n  \"categoryId\": \"770e8400-e29b-41d4-a716-446655440002\",\n  \"status\": \"ACTIVE\",\n  \"requestByMoney\": false,\n  \"locationName\": \"New York, NY\",\n  \"latitude\": 40.7128,\n  \"longitude\": -74.0060,\n  \"isPreOwned\": true,\n  \"lifecycleVersion\": 1,\n  \"isListed\": true\n}"
+              "raw": "{\n  \"title\": \"Vintage Camera\",\n  \"description\": \"A beautiful vintage camera in good condition\",\n  \"categoryId\": \"770e8400-e29b-41d4-a716-446655440002\",\n  \"status\": \"ACTIVE\",\n  \"requestByMoney\": false,\n  \"isFree\": false,\n  \"locationName\": \"New York, NY\",\n  \"latitude\": 40.7128,\n  \"longitude\": -74.0060,\n  \"isPreOwned\": true,\n  \"lifecycleVersion\": 1,\n  \"isListed\": true\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/products",
@@ -364,7 +471,67 @@
                 "products"
               ]
             },
-            "description": "Create a new product (PROTECTED - requires auth)\n\nRequired fields:\n- title: string\n\nOptional fields:\n- description: string\n- categoryId: UUID\n- status: ACTIVE | RESERVED | EXCHANGED | REMOVED (default: ACTIVE)\n- requestByMoney: boolean (default: false)\n- locationName: string\n- latitude: number\n- longitude: number\n- isPreOwned: boolean (default: false)\n- lifecycleVersion: positive integer (default: 1)\n- isListed: boolean (default: true)\n\nNote: currentOwnerId is automatically set from authenticated user token"
+            "description": "Create a new product (PROTECTED - requires auth)\n\nRequired fields:\n- title: string\n\nOptional fields:\n- description: string\n- categoryId: UUID\n- status: ACTIVE | RESERVED | EXCHANGED | REMOVED (default: ACTIVE)\n- requestByMoney: boolean (default: false) — allows MONEY and MIXED offers\n- isFree: boolean (default: false) — marks product as free; buyers can request with any offer type or no offer (NONE)\n- locationName: string\n- latitude: number\n- longitude: number\n- isPreOwned: boolean (default: false)\n- lifecycleVersion: positive integer (default: 1)\n- isListed: boolean (default: true)\n\nOffer type rules:\n- isFree=false, requestByMoney=false → PRODUCT offers only\n- isFree=false, requestByMoney=true → PRODUCT, MONEY, or MIXED\n- isFree=true → PRODUCT, MONEY, MIXED, or NONE (buyer's choice)\n\nNote: currentOwnerId is automatically set from authenticated user token"
+          }
+        },
+        {
+          "name": "Create Free Product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json;",
+                  "try {",
+                  "  json = pm.response.json();",
+                  "} catch (e) {",
+                  "  json = null;",
+                  "}",
+                  "",
+                  "const product = json?.data?.product ?? json?.data ?? null;",
+                  "const productId = product?.id;",
+                  "",
+                  "if (productId) {",
+                  "  pm.environment.set('currentFreeProductId', String(productId));",
+                  "  pm.collectionVariables.set('currentFreeProductId', String(productId));",
+                  "}",
+                  "",
+                  "pm.test('Current free product captured (non-blocking)', () => {",
+                  "  pm.expect(true).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Old Bookshelf\",\n  \"description\": \"Giving away for free, good condition\",\n  \"categoryId\": \"770e8400-e29b-41d4-a716-446655440002\",\n  \"status\": \"ACTIVE\",\n  \"requestByMoney\": false,\n  \"isFree\": true,\n  \"locationName\": \"New York, NY\",\n  \"latitude\": 40.7128,\n  \"longitude\": -74.0060,\n  \"isPreOwned\": true,\n  \"lifecycleVersion\": 1,\n  \"isListed\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products"
+              ]
+            },
+            "description": "Create a free product (PROTECTED - requires auth)\n\nSet isFree=true to mark the product as free.\nBuyers can request it with any offer type or with no offer at all (offerType=NONE).\n\nRequired fields:\n- title: string\n- isFree: true\n\nOffer type rules for free products:\n- NONE: buyer requests without attaching any offer (default)\n- PRODUCT: buyer offers their own product(s) in exchange\n- MONEY: buyer offers a cash amount\n- MIXED: buyer offers products + cash\n\nNote: currentOwnerId is automatically set from authenticated user token"
           }
         },
         {
@@ -387,14 +554,14 @@
               "raw": "{\n  \"fileNames\": [\"image1.jpg\", \"image2.png\"]\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/products/660e8400-e29b-41d4-a716-446655440001/images/presigned",
+              "raw": "{{baseUrl}}/api/products/{{currentProductId}}/images/presigned",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "products",
-                "660e8400-e29b-41d4-a716-446655440001",
+                "{{currentProductId}}",
                 "images",
                 "presigned"
               ]
@@ -419,17 +586,17 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"images\": [\n    {\n      \"storageKey\": \"products/660e8400-e29b-41d4-a716-446655440001/1234567890-abc123.jpg\",\n      \"url\": \"https://your-bucket.s3.region.amazonaws.com/products/660e8400-e29b-41d4-a716-446655440001/1234567890-abc123.jpg\",\n      \"isPrimary\": true\n    }\n  ]\n}"
+              "raw": "{\n  \"images\": [\n    {\n      \"storageKey\": \"products/{{currentProductId}}/1234567890-abc123.jpg\",\n      \"url\": \"https://your-bucket.s3.region.amazonaws.com/products/{{currentProductId}}/1234567890-abc123.jpg\",\n      \"isPrimary\": true\n    }\n  ]\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/products/660e8400-e29b-41d4-a716-446655440001/images",
+              "raw": "{{baseUrl}}/api/products/{{currentProductId}}/images",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "products",
-                "660e8400-e29b-41d4-a716-446655440001",
+                "{{currentProductId}}",
                 "images"
               ]
             },
@@ -456,14 +623,14 @@
               "raw": "{\n  \"newOwnerId\": \"770e8400-e29b-41d4-a716-446655440003\"\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/products/660e8400-e29b-41d4-a716-446655440001/ownership",
+              "raw": "{{baseUrl}}/api/products/{{currentProductId}}/ownership",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "products",
-                "660e8400-e29b-41d4-a716-446655440001",
+                "{{currentProductId}}",
                 "ownership"
               ]
             },
@@ -482,14 +649,14 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/products/660e8400-e29b-41d4-a716-446655440001/ownership-history",
+              "raw": "{{baseUrl}}/api/products/{{currentProductId}}/ownership-history",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "products",
-                "660e8400-e29b-41d4-a716-446655440001",
+                "{{currentProductId}}",
                 "ownership-history"
               ]
             },
@@ -508,14 +675,14 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/products/660e8400-e29b-41d4-a716-446655440001",
+              "raw": "{{baseUrl}}/api/products/{{currentProductId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "products",
-                "660e8400-e29b-41d4-a716-446655440001"
+                "{{currentProductId}}"
               ]
             },
             "description": "Delete a product and all associated images from S3 (PROTECTED)\n\nNote: Only product owner can delete their products"
@@ -533,16 +700,16 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/products/660e8400-e29b-41d4-a716-446655440001/images/880e8400-e29b-41d4-a716-446655440003",
+              "raw": "{{baseUrl}}/api/products/{{currentProductId}}/images/{{currentImageId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "products",
-                "660e8400-e29b-41d4-a716-446655440001",
+                "{{currentProductId}}",
                 "images",
-                "880e8400-e29b-41d4-a716-446655440003"
+                "{{currentImageId}}"
               ]
             },
             "description": "Delete a specific image from a product (PROTECTED)\n\nPath Parameters:\n- productId: UUID of the product\n- imageId: UUID of the image to delete\n\nNote: Only product owner can delete images from their products"
@@ -707,6 +874,34 @@
       "item": [
         {
           "name": "Create Product Request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json;",
+                  "try {",
+                  "  json = pm.response.json();",
+                  "} catch (e) {",
+                  "  json = null;",
+                  "}",
+                  "",
+                  "const requestRecord = json?.data?.request ?? json?.data ?? null;",
+                  "const requestId = requestRecord?.id;",
+                  "",
+                  "if (requestId) {",
+                  "  pm.environment.set('currentRequestId', String(requestId));",
+                  "  pm.collectionVariables.set('currentRequestId', String(requestId));",
+                  "}",
+                  "",
+                  "pm.test('Current request captured (non-blocking)', () => {",
+                  "  pm.expect(true).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -722,7 +917,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"productId\": \"660e8400-e29b-41d4-a716-446655440001\",\n  \"offerType\": \"MIXED\",\n  \"offeredProducts\": [\n    \"660e8400-e29b-41d4-a716-446655440010\",\n    \"660e8400-e29b-41d4-a716-446655440011\"\n  ],\n  \"amount\": 1200,\n  \"visibleProducts\": [\n    \"660e8400-e29b-41d4-a716-446655440012\"\n  ],\n  \"allowProductAccess\": true,\n  \"message\": \"Interested in exchange this week\",\n  \"contactPreference\": \"PHONE\",\n  \"expiresInHours\": 72\n}"
+              "raw": "{\n  \"productId\": \"{{currentProductId}}\",\n  \"offerType\": \"MIXED\",\n  \"offeredProducts\": [\n    \"660e8400-e29b-41d4-a716-446655440010\",\n    \"660e8400-e29b-41d4-a716-446655440011\"\n  ],\n  \"amount\": 1200,\n  \"visibleProducts\": [\n    \"660e8400-e29b-41d4-a716-446655440012\"\n  ],\n  \"allowProductAccess\": true,\n  \"message\": \"Interested in exchange this week\",\n  \"contactPreference\": \"PHONE\",\n  \"expiresInHours\": 72\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/requests",
@@ -734,7 +929,153 @@
                 "requests"
               ]
             },
-            "description": "Create a product request with offer payload (PROTECTED - requires auth)\n\nOffer modes:\n- PRODUCT: requires offeredProducts only\n- MONEY: requires amount only\n- MIXED: requires both amount + offeredProducts\n\nWorkflow implemented (as in sequence diagram):\n1. Validate payload and offer shape\n2. Fetch target product\n3. Block if product unavailable:\n   - status not in ACTIVE/RESERVED\n   - isListed = false\n   - cooldownUntil > now\n4. Optional FOMO warning if product status is RESERVED\n5. Insert Request (status=PENDING, lifecycleVersion snapshot from Product)\n6. Insert RequestOffer (status=ACTIVE, type + amount)\n7. Insert RequestOfferProduct rows (if offeredProducts provided)\n8. Insert RequestVisibleProduct rows (if visibleProducts provided)\n\nOwnership rules:\n- Buyer cannot request own product\n- offeredProducts and visibleProducts must belong to buyer and be active listed products\n\nResponse shape:\n{\n  request: { ...requestWithOfferAndProducts },\n  warning: string | null,\n  internals: {\n    lifecycleVersionSnapshot: number,\n    requestStatus: \"PENDING\",\n    offerStatus: \"ACTIVE\"\n  }\n}"
+            "description": "Create a product request with offer payload (PROTECTED - requires auth)\n\nOffer type rules (driven by product settings):\n- isFree=false, requestByMoney=false → PRODUCT only\n- isFree=false, requestByMoney=true → PRODUCT, MONEY, or MIXED\n- isFree=true → PRODUCT, MONEY, MIXED, or NONE (buyer's choice; offerType defaults to NONE)\n\nOffer modes:\n- PRODUCT: requires offeredProducts only\n- MONEY: requires amount only\n- MIXED: requires both amount + offeredProducts\n- NONE: no offer attached (only for free products)\n\nWorkflow:\n1. Validate payload and offer shape\n2. Fetch target product\n3. Block if product unavailable:\n   - status not in ACTIVE/RESERVED\n   - isListed = false\n   - cooldownUntil > now\n4. Optional warning if product status is RESERVED\n5. Upsert one request thread for (productId, buyerId, sellerId)\n6. Mark previous ACTIVE offer as SUPERSEDED (if present)\n7. Insert fresh ACTIVE offer + offer products\n8. Replace visible products\n\nOwnership rules:\n- Buyer cannot request own product\n- offeredProducts and visibleProducts must belong to buyer and be active listed products\n\nResponse internals include:\n- requestStatus\n- offerStatus\n- currentTurn\n- isUpdate"
+          }
+        },
+        {
+          "name": "Get Request Offers (Thread)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/requests/{{currentRequestId}}/offers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "requests",
+                "{{currentRequestId}}",
+                "offers"
+              ]
+            },
+            "description": "Get a request negotiation thread (PROTECTED).\n\nReturns:\n- requestId\n- status\n- currentTurn\n- offer history ordered oldest to newest\n\nAccess: only buyer or seller on that request."
+          }
+        },
+        {
+          "name": "Create Counter Offer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"offerType\": \"MIXED\",\n  \"offeredProducts\": [\n    \"660e8400-e29b-41d4-a716-446655440010\"\n  ],\n  \"amount\": 900,\n  \"visibleProducts\": [\n    \"660e8400-e29b-41d4-a716-446655440012\"\n  ],\n  \"message\": \"Can you do this offer instead?\",\n  \"expiresInHours\": 48\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/requests/{{currentRequestId}}/offers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "requests",
+                "{{currentRequestId}}",
+                "offers"
+              ]
+            },
+            "description": "Create counter offer (PROTECTED).\n\nRules:\n- Only currentTurn actor can counter\n- Existing ACTIVE offer is marked SUPERSEDED\n- New ACTIVE offer is inserted\n- currentTurn flips to the opposite side\n- Request status becomes NEGOTIATING"
+          }
+        },
+        {
+          "name": "Accept Request",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/requests/{{currentRequestId}}/accept",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "requests",
+                "{{currentRequestId}}",
+                "accept"
+              ]
+            },
+            "description": "Accept active offer (PROTECTED).\n\nBehavior:\n- Request -> ACCEPTED\n- Active offer -> ACCEPTED\n- ProductReservation created/updated\n- Product -> RESERVED\n- If another request already held reservation for this product, that previous request is auto-rejected as OVERRIDDEN"
+          }
+        },
+        {
+          "name": "Reject Request",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/requests/{{currentRequestId}}/reject",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "requests",
+                "{{currentRequestId}}",
+                "reject"
+              ]
+            },
+            "description": "Reject request (PROTECTED).\n\nBehavior:\n- Request -> REJECTED\n- ACTIVE offer(s) -> REJECTED\n- If this request held reservation, reservation is cancelled"
+          }
+        },
+        {
+          "name": "Cancel Request",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"No longer interested\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/requests/{{currentRequestId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "requests",
+                "{{currentRequestId}}",
+                "cancel"
+              ]
+            },
+            "description": "Cancel request by buyer or seller (PROTECTED).\n\nBody:\n- reason: string (3..500)\n\nBehavior:\n- Request -> CANCELLED\n- ACTIVE offer(s) -> CANCELLED\n- If this request held reservation, reservation is cancelled"
           }
         },
         {
@@ -777,7 +1118,7 @@
                 }
               ]
             },
-            "description": "List requests created by the authenticated buyer with cursor pagination (PROTECTED).\n\nQuery:\n- status: PENDING | ACCEPTED | REJECTED | EXPIRED (optional)\n- limit: 1..100 (default 20)\n- cursor: base64 pagination token\n\nResponse:\n{ items: Request[], nextCursor: string|null, hasMore: boolean }"
+            "description": "List requests created by the authenticated buyer with cursor pagination (PROTECTED).\n\nQuery:\n- status: PENDING | NEGOTIATING | ACCEPTED | REJECTED | EXPIRED | CANCELLED (optional)\n- limit: 1..100 (default 20)\n- cursor: base64 pagination token\n\nResponse:\n{ items: Request[], nextCursor: string|null, hasMore: boolean }"
           }
         },
         {
@@ -820,7 +1161,7 @@
                 }
               ]
             },
-            "description": "List requests received by the authenticated seller with cursor pagination (PROTECTED)."
+            "description": "List requests received by the authenticated seller with cursor pagination (PROTECTED).\n\nQuery:\n- status: PENDING | NEGOTIATING | ACCEPTED | REJECTED | EXPIRED | CANCELLED (optional)\n- limit: 1..100 (default 20)\n- cursor: base64 pagination token"
           }
         },
         {
@@ -835,14 +1176,14 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/requests/770e8400-e29b-41d4-a716-446655440050",
+              "raw": "{{baseUrl}}/api/requests/{{currentRequestId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "requests",
-                "770e8400-e29b-41d4-a716-446655440050"
+                "{{currentRequestId}}"
               ]
             },
             "description": "Get single request details with offers, offered products, and visible products (PROTECTED).\n\nAccess: only buyer or seller on that request."
@@ -859,10 +1200,64 @@
       "description": "Base URL for the API"
     },
     {
+      "key": "currentUser",
+      "value": "",
+      "type": "string",
+      "description": "Current login identifier used for OTP requests"
+    },
+    {
       "key": "accessToken",
       "value": "",
       "type": "string",
       "description": "JWT access token from verify-otp response. Copy and paste the token here after authentication."
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string",
+      "description": "JWT refresh token captured from verify-otp response"
+    },
+    {
+      "key": "currentUserId",
+      "value": "",
+      "type": "string",
+      "description": "Authenticated user id captured from profile response"
+    },
+    {
+      "key": "currentUserEmail",
+      "value": "",
+      "type": "string",
+      "description": "Authenticated user email captured from profile response"
+    },
+    {
+      "key": "currentUserPhone",
+      "value": "",
+      "type": "string",
+      "description": "Authenticated user phone captured from profile response"
+    },
+    {
+      "key": "currentProductId",
+      "value": "",
+      "type": "string",
+      "description": "Latest created product id captured from Create Product"
+    },
+    {
+      "key": "currentFreeProductId",
+      "value": "",
+      "type": "string",
+      "description": "Latest created free product id captured from Create Free Product"
+    },
+    {
+      "key": "currentImageId",
+      "value": "",
+      "type": "string",
+      "description": "Image id to use for Delete Product Image"
+    },
+    {
+      "key": "currentRequestId",
+      "value": "",
+      "type": "string",
+      "description": "Latest request thread id captured from Create Product Request"
     }
   ]
 }

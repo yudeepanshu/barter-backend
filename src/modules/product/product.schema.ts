@@ -6,6 +6,7 @@ export const createProductSchema = z.object({
   categoryId: z.string().uuid().optional(),
   status: z.enum(['ACTIVE', 'RESERVED', 'EXCHANGED', 'REMOVED']).optional().default('ACTIVE'),
   requestByMoney: z.boolean().optional().default(false),
+  isFree: z.boolean().optional().default(false),
   currentOwnerId: z.string().uuid().optional(),
   locationName: z.string().optional(),
   latitude: z.number().optional(),

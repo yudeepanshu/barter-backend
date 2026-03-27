@@ -7,6 +7,7 @@ export const createProduct = async (data: CreateProductInput & { currentOwnerId:
     description: data.description,
     status: data.status,
     requestByMoney: data.requestByMoney,
+    isFree: data.isFree,
     currentOwnerId: data.currentOwnerId,
     locationName: data.locationName,
     latitude: data.latitude,

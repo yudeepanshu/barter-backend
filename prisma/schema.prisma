@@ -23,6 +23,8 @@ model User {
   buyRequests       Request[] @relation("RequestBuyer")
   sellRequests      Request[] @relation("RequestSeller")
   offersMade        RequestOffer[] @relation("RequestOfferByUser")
+  reservationsAsBuyer ProductReservation[] @relation("ProductReservationBuyer")
+  reservationsAsSeller ProductReservation[] @relation("ProductReservationSeller")
 }
 
 model Category {
@@ -42,6 +44,7 @@ model Product {
   categoryId       String?
   status           String   @default("ACTIVE")
   requestByMoney   Boolean  @default(false)
+  isFree           Boolean  @default(false)
   currentOwnerId   String
   productImages    ProductImage[]
   locationName     String?
@@ -60,6 +63,7 @@ model Product {
   category Category? @relation(fields: [categoryId], references: [id])
   ownershipHistory ProductOwnershipHistory[]
   requests         Request[]
+  reservations     ProductReservation[]
   offeredInRequests RequestOfferProduct[]
   visibleInRequests RequestVisibleProduct[]
 
@@ -106,12 +110,17 @@ model Request {
   buyerId            String
   sellerId           String
   status             String   @default("PENDING")
+  currentTurn        String   @default("SELLER")
   allowProductAccess Boolean  @default(false)
   message            String?
   contactPreference  String   @default("PHONE")
   lifecycleVersion   Int
   expiresAt          DateTime?
   updateCount        Int      @default(0)
+  cancelledById      String?
+  cancelledByRole    String?
+  cancelledReason    String?
+  acceptedOfferId    String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
@@ -120,6 +129,7 @@ model Request {
   seller          User                   @relation("RequestSeller", fields: [sellerId], references: [id])
   offers          RequestOffer[]
   visibleProducts RequestVisibleProduct[]
+  reservations   ProductReservation[]
 
   @@unique([productId, buyerId, sellerId], name: "request_unique_buyer_product_seller")
   @@index([productId, status], name: "request_product_status_idx")
@@ -140,8 +150,34 @@ model RequestOffer {
   request         Request               @relation(fields: [requestId], references: [id])
   offeredBy       User                  @relation("RequestOfferByUser", fields: [offeredById], references: [id])
   offeredProducts RequestOfferProduct[]
+  reservations    ProductReservation[]
 
   @@index([requestId, status], name: "request_offer_request_status_idx")
+}
+
+model ProductReservation {
+  id             String   @id @default(uuid())
+  productId      String
+  requestId      String
+  offerId        String
+  buyerId        String
+  sellerId       String
+  isContactVisible Boolean @default(false)
+  status         String   @default("ACTIVE")
+  cancelledReason String?
+  expiresAt      DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id])
+  request Request @relation(fields: [requestId], references: [id])
+  offer   RequestOffer @relation(fields: [offerId], references: [id])
+  buyer   User @relation("ProductReservationBuyer", fields: [buyerId], references: [id])
+  seller  User @relation("ProductReservationSeller", fields: [sellerId], references: [id])
+
+  @@unique([productId], name: "product_single_active_reservation")
+  @@index([buyerId, status], name: "reservation_buyer_status_idx")
+  @@index([sellerId, status], name: "reservation_seller_status_idx")
 }
 
 model RequestOfferProduct {

@@ -1,6 +1,19 @@
 import { AppError } from '../../common/errors/AppError';
 import * as repo from './request.repository';
-import { CreateRequestInput, ListRequestsQueryInput } from './request.schema';
+import {
+  CancelRequestInput,
+  CreateCounterOfferInput,
+  CreateRequestInput,
+  ListRequestsQueryInput,
+} from './request.schema';
+
+type RequestActorRole = 'BUYER' | 'SELLER';
+
+type OfferInputLike = {
+  offerType: 'PRODUCT' | 'MONEY' | 'MIXED' | 'NONE';
+  offeredProducts: string[];
+  amount?: number;
+};
 
 const encodeCursor = (createdAt: Date, id: string) => {
   return Buffer.from(`${createdAt.toISOString()}|${id}`, 'utf8').toString('base64');
@@ -27,7 +40,10 @@ const buildPaginatedResponse = <T extends { createdAt: Date; id: string }>(
   };
 };
 
-const validateOfferShape = (payload: CreateRequestInput) => {
+const validateOfferShape = (payload: OfferInputLike) => {
+  // NONE means no offer attached (only valid for free products — checked separately)
+  if (payload.offerType === 'NONE') return;
+
   const offeredCount = payload.offeredProducts.length;
   const hasAmount = payload.amount != null;
 
@@ -67,6 +83,21 @@ const validateOwnership = async (userId: string, productIds: string[], label: st
   }
 };
 
+const getActorRoleFromRequest = (
+  request: { buyerId: string; sellerId: string },
+  userId: string,
+): RequestActorRole => {
+  if (request.buyerId === userId) {
+    return 'BUYER';
+  }
+
+  if (request.sellerId === userId) {
+    return 'SELLER';
+  }
+
+  throw new AppError('Forbidden', 403);
+};
+
 export const createRequest = async (payload: CreateRequestInput, buyerId?: string) => {
   if (!buyerId) {
     throw new AppError('Unauthorized', 401);
@@ -81,6 +112,18 @@ export const createRequest = async (payload: CreateRequestInput, buyerId?: strin
 
   if (product.currentOwnerId === buyerId) {
     throw new AppError('You cannot request your own product', 400);
+  }
+
+  if (
+    !product.requestByMoney &&
+    !product.isFree &&
+    (payload.offerType === 'MONEY' || payload.offerType === 'MIXED')
+  ) {
+    throw new AppError('This product only accepts product-based offers', 400);
+  }
+
+  if (!product.isFree && payload.offerType === 'NONE') {
+    throw new AppError('An offer is required for this product', 400);
   }
 
   const now = new Date();
@@ -111,15 +154,13 @@ export const createRequest = async (payload: CreateRequestInput, buyerId?: strin
 
   const expiresAt = new Date(now.getTime() + payload.expiresInHours * 60 * 60 * 1000);
 
-  // Check for existing open request
-  const existingRequest = await repo.findExistingOpenRequest(
+  const existingThread = await repo.findRequestThreadByParticipants(
     payload.productId,
     buyerId,
     product.currentOwnerId,
   );
-  const isUpdate = !!existingRequest;
 
-  const request = await repo.createRequestWithOffer({
+  const request = await repo.upsertRequestThreadWithBuyerOffer({
     productId: payload.productId,
     buyerId,
     sellerId: product.currentOwnerId,
@@ -137,11 +178,152 @@ export const createRequest = async (payload: CreateRequestInput, buyerId?: strin
   return {
     request,
     warning,
-    isUpdate,
+    isUpdate: !!existingThread,
     internals: {
       lifecycleVersionSnapshot: product.lifecycleVersion,
-      requestStatus: isUpdate ? 'UPDATED' : 'CREATED',
+      requestStatus: request.status,
       offerStatus: 'ACTIVE',
+      currentTurn: request.currentTurn,
+    },
+  };
+};
+
+export const createCounterOffer = async (
+  requestId: string,
+  payload: CreateCounterOfferInput,
+  userId?: string,
+) => {
+  if (!userId) {
+    throw new AppError('Unauthorized', 401);
+  }
+
+  validateOfferShape(payload);
+
+  const request = await repo.findRequestByIdForUser(requestId, userId);
+  if (!request) {
+    throw new AppError('Request not found', 404);
+  }
+
+  if (request.expiresAt && request.expiresAt <= new Date()) {
+    throw new AppError('Request has expired', 409);
+  }
+
+  const actorRole = getActorRoleFromRequest(request, userId);
+
+  if (
+    !request.product.requestByMoney &&
+    !request.product.isFree &&
+    (payload.offerType === 'MONEY' || payload.offerType === 'MIXED')
+  ) {
+    throw new AppError('This product only accepts product-based offers', 400);
+  }
+
+  if (!request.product.isFree && payload.offerType === 'NONE') {
+    throw new AppError('An offer is required for this product', 400);
+  }
+
+  const allReferencedProducts = [...payload.offeredProducts, ...payload.visibleProducts];
+  if (allReferencedProducts.includes(request.productId)) {
+    throw new AppError(
+      'Requested product cannot be reused inside offer/visibility product lists',
+      400,
+    );
+  }
+
+  await validateOwnership(userId, payload.offeredProducts, 'offeredProducts');
+  await validateOwnership(userId, payload.visibleProducts, 'visibleProducts');
+
+  const expiresAt = new Date(Date.now() + payload.expiresInHours * 60 * 60 * 1000);
+
+  const updated = await repo.createCounterOffer({
+    requestId,
+    actorId: userId,
+    actorRole,
+    lifecycleVersion: request.lifecycleVersion,
+    offerType: payload.offerType,
+    amount: payload.amount,
+    offeredProducts: payload.offeredProducts,
+    visibleProducts: payload.visibleProducts,
+    message: payload.message,
+    expiresAt,
+  });
+
+  return {
+    request: updated,
+    internals: {
+      requestStatus: updated.status,
+      currentTurn: updated.currentTurn,
+      action: 'COUNTERED',
+    },
+  };
+};
+
+export const acceptRequest = async (requestId: string, userId?: string) => {
+  if (!userId) {
+    throw new AppError('Unauthorized', 401);
+  }
+
+  const request = await repo.findRequestByIdForUser(requestId, userId);
+  if (!request) {
+    throw new AppError('Request not found', 404);
+  }
+
+  const actorRole = getActorRoleFromRequest(request, userId);
+  const updated = await repo.acceptActiveOffer(requestId, userId, actorRole);
+
+  return {
+    request: updated,
+    internals: {
+      requestStatus: updated.status,
+      action: 'ACCEPTED',
+    },
+  };
+};
+
+export const rejectRequest = async (requestId: string, userId?: string) => {
+  if (!userId) {
+    throw new AppError('Unauthorized', 401);
+  }
+
+  const request = await repo.findRequestByIdForUser(requestId, userId);
+  if (!request) {
+    throw new AppError('Request not found', 404);
+  }
+
+  const actorRole = getActorRoleFromRequest(request, userId);
+  const updated = await repo.rejectRequest(requestId, userId, actorRole);
+
+  return {
+    request: updated,
+    internals: {
+      requestStatus: updated.status,
+      action: 'REJECTED',
+    },
+  };
+};
+
+export const cancelRequest = async (
+  requestId: string,
+  payload: CancelRequestInput,
+  userId?: string,
+) => {
+  if (!userId) {
+    throw new AppError('Unauthorized', 401);
+  }
+
+  const request = await repo.findRequestByIdForUser(requestId, userId);
+  if (!request) {
+    throw new AppError('Request not found', 404);
+  }
+
+  const actorRole = getActorRoleFromRequest(request, userId);
+  const updated = await repo.cancelRequest(requestId, userId, actorRole, payload.reason);
+
+  return {
+    request: updated,
+    internals: {
+      requestStatus: updated.status,
+      action: 'CANCELLED',
     },
   };
 };
@@ -157,6 +339,14 @@ export const getRequestById = async (requestId: string, userId?: string) => {
   }
 
   return request;
+};
+
+export const getRequestOffers = async (requestId: string, userId?: string) => {
+  if (!userId) {
+    throw new AppError('Unauthorized', 401);
+  }
+
+  return repo.listOffersForRequest(requestId, userId);
 };
 
 export const getSentRequests = async (query: ListRequestsQueryInput, userId?: string) => {

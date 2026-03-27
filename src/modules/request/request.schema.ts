@@ -1,8 +1,16 @@
 import { z } from 'zod';
 
-export const requestStatusSchema = z.enum(['PENDING', 'ACCEPTED', 'REJECTED', 'EXPIRED']);
-export const offerTypeSchema = z.enum(['PRODUCT', 'MONEY', 'MIXED']);
+export const requestStatusSchema = z.enum([
+  'PENDING',
+  'NEGOTIATING',
+  'ACCEPTED',
+  'REJECTED',
+  'EXPIRED',
+  'CANCELLED',
+]);
+export const offerTypeSchema = z.enum(['PRODUCT', 'MONEY', 'MIXED', 'NONE']);
 export const contactPreferenceSchema = z.enum(['PHONE', 'EMAIL', 'BOTH']);
+export const requestTurnSchema = z.enum(['BUYER', 'SELLER']);
 
 const uuidArraySchema = z
   .array(z.string().uuid())
@@ -13,7 +21,7 @@ const uuidArraySchema = z
 
 export const createRequestSchema = z.object({
   productId: z.string().uuid(),
-  offerType: offerTypeSchema,
+  offerType: offerTypeSchema.optional().default('NONE'),
   offeredProducts: uuidArraySchema,
   amount: z.coerce.number().positive().optional(),
   visibleProducts: uuidArraySchema,
@@ -35,5 +43,30 @@ export const listRequestsQuerySchema = z.object({
   cursor: z.string().optional(),
 });
 
+export const requestIdParamSchema = z.object({
+  id: z.string().uuid(),
+});
+
+export const createCounterOfferSchema = z.object({
+  offerType: offerTypeSchema.optional().default('NONE'),
+  offeredProducts: uuidArraySchema,
+  amount: z.coerce.number().positive().optional(),
+  visibleProducts: uuidArraySchema,
+  message: z.string().trim().max(1000).optional(),
+  expiresInHours: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(24 * 30)
+    .optional()
+    .default(72),
+});
+
+export const cancelRequestSchema = z.object({
+  reason: z.string().trim().min(3).max(500),
+});
+
 export type CreateRequestInput = z.infer<typeof createRequestSchema>;
 export type ListRequestsQueryInput = z.infer<typeof listRequestsQuerySchema>;
+export type CreateCounterOfferInput = z.infer<typeof createCounterOfferSchema>;
+export type CancelRequestInput = z.infer<typeof cancelRequestSchema>;

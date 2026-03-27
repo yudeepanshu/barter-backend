@@ -128,9 +128,15 @@ export const getProducts = async (filters: QueryProductsInput) => {
     }
   }
 
+  const isOwnerQuery = Boolean(filters.ownerId);
+
   const where: any = {
-    status: filters.status ? filters.status : { in: ['ACTIVE', 'RESERVED'] },
-    isListed: true,
+    status: filters.status
+      ? filters.status
+      : isOwnerQuery
+        ? { in: ['ACTIVE', 'RESERVED', 'EXCHANGED', 'REMOVED'] }
+        : { in: ['ACTIVE', 'RESERVED'] },
+    ...(isOwnerQuery ? {} : { isListed: true }),
   };
 
   if (filters.categoryId) where.categoryId = filters.categoryId;

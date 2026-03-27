@@ -1,6 +1,19 @@
 import prisma from '../../config/db';
 import { PrismaClient } from '@prisma/client';
 
+export const findUserById = async (id: string) => {
+  return prisma.user.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      userName: true,
+      email: true,
+      mobileNumber: true,
+      profilePicture: true,
+    },
+  });
+};
+
 export const findUserByEmailOrPhone = async (email?: string, mobile?: string) => {
   return prisma.user.findFirst({
     where: {

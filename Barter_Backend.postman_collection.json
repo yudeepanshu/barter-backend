@@ -664,6 +664,39 @@
           }
         },
         {
+          "name": "Update Product",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Bookshelf\",\n  \"description\": \"Updated description by new owner\",\n  \"categoryId\": null,\n  \"requestByMoney\": false,\n  \"locationName\": \"Brooklyn, New York\",\n  \"latitude\": 40.6782,\n  \"longitude\": -73.9442,\n  \"isListed\": true,\n  \"isFree\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{currentProductId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "{{currentProductId}}"
+              ]
+            },
+            "description": "Update product fields (PROTECTED, owner-only).\n\nAllowed fields only:\n- title\n- description\n- categoryId\n- requestByMoney\n- locationName\n- latitude\n- longitude\n- isListed\n- isFree\n\nAll other fields are ignored by schema validation and cannot be updated through this endpoint."
+          }
+        },
+        {
           "name": "Get Product Ownership History",
           "request": {
             "method": "GET",

@@ -41,6 +41,22 @@ export const transferOwnershipSchema = z.object({
   newOwnerId: z.string().uuid(),
 });
 
+export const updateProductSchema = z
+  .object({
+    title: z.string().min(1).optional(),
+    description: z.string().nullable().optional(),
+    categoryId: z.string().uuid().nullable().optional(),
+    requestByMoney: z.boolean().optional(),
+    locationName: z.string().nullable().optional(),
+    latitude: z.number().nullable().optional(),
+    longitude: z.number().nullable().optional(),
+    isListed: z.boolean().optional(),
+    isFree: z.boolean().optional(),
+  })
+  .refine((payload) => Object.keys(payload).length > 0, {
+    message: 'At least one field is required',
+  });
+
 export const productIdParamSchema = z.object({
   id: z.string().uuid(),
 });
@@ -58,3 +74,4 @@ export const queryProductsSchema = z.object({
 });
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;
+export type UpdateProductInput = z.infer<typeof updateProductSchema>;

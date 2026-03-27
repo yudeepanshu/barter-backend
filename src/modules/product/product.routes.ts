@@ -12,6 +12,7 @@ router.get('/:id', asyncHandler(productController.getProduct));
 // Protected routes (require authentication)
 router.post('/', protect, asyncHandler(productController.createProduct));
 router.patch('/:id/relist', protect, asyncHandler(productController.relistProduct));
+router.patch('/:id', protect, asyncHandler(productController.updateProduct));
 router.delete('/:id', protect, asyncHandler(productController.deleteProduct));
 router.post(
   '/:id/images/presigned',

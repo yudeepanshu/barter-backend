@@ -5,7 +5,7 @@ import redis from '../../config/redis';
 import { AppError } from '../../common/errors/AppError';
 import { S3BlobStorage } from './senders/s3Storage';
 import * as repo from './product.repository';
-import { CreateProductInput, queryProductsSchema } from './product.schema';
+import { CreateProductInput, UpdateProductInput, queryProductsSchema } from './product.schema';
 
 const storage = new S3BlobStorage();
 
@@ -235,6 +235,46 @@ export const deleteProduct = async (productId: string, userId: string) => {
   }
 
   return repo.deleteProductById(productId);
+};
+
+export const updateProduct = async (
+  productId: string,
+  payload: UpdateProductInput,
+  userId?: string,
+) => {
+  if (!userId) {
+    throw new AppError('Unauthorized', 401);
+  }
+
+  const product = await getProductById(productId);
+  if (product.currentOwnerId !== userId) {
+    throw new AppError('You can only update your own product', 403);
+  }
+
+  if (payload.categoryId) {
+    const category = await prisma.category.findUnique({ where: { id: payload.categoryId } });
+    if (!category) {
+      throw new AppError('Category not found', 400);
+    }
+  }
+
+  const updateData: any = {
+    ...(payload.title !== undefined ? { title: payload.title } : {}),
+    ...(payload.description !== undefined ? { description: payload.description } : {}),
+    ...(payload.categoryId !== undefined ? { categoryId: payload.categoryId } : {}),
+    ...(payload.requestByMoney !== undefined ? { requestByMoney: payload.requestByMoney } : {}),
+    ...(payload.locationName !== undefined ? { locationName: payload.locationName } : {}),
+    ...(payload.latitude !== undefined ? { latitude: payload.latitude } : {}),
+    ...(payload.longitude !== undefined ? { longitude: payload.longitude } : {}),
+    ...(payload.isListed !== undefined ? { isListed: payload.isListed } : {}),
+    ...(payload.isFree !== undefined ? { isFree: payload.isFree } : {}),
+  };
+
+  return prisma.product.update({
+    where: { id: productId },
+    data: updateData,
+    include: { productImages: true, category: true },
+  });
 };
 
 export const relistProduct = async (productId: string, userId?: string) => {

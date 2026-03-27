@@ -3,12 +3,14 @@ import { sendSuccess } from '../../common/utils/responseHandler';
 import * as productService from './product.service';
 import {
   CreateProductInput,
+  UpdateProductInput,
   createProductSchema,
   addProductImagesSchema,
   generatePresignedUrlsSchema,
   productIdParamSchema,
   queryProductsSchema,
   transferOwnershipSchema,
+  updateProductSchema,
 } from './product.schema';
 
 export const createProduct = async (req: Request, res: Response) => {
@@ -42,6 +44,14 @@ export const relistProduct = async (req: Request, res: Response) => {
   const userId = req.user?.id;
   const product = await productService.relistProduct(productId, userId);
   return sendSuccess(res, product, 'Product relisted');
+};
+
+export const updateProduct = async (req: Request, res: Response) => {
+  const { id: productId } = productIdParamSchema.parse(req.params);
+  const payload = updateProductSchema.parse(req.body) as UpdateProductInput;
+  const userId = req.user?.id;
+  const product = await productService.updateProduct(productId, payload, userId);
+  return sendSuccess(res, product, 'Product updated');
 };
 
 export const deleteProductImage = async (req: Request, res: Response) => {

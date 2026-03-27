@@ -1,9 +1,10 @@
 import pino from 'pino';
 import { AppLogger } from '../common/interfaces/logger';
+import { config } from './env';
 
 class PinoLogger implements AppLogger {
   private logger = pino({
-    level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+    level: config.LOG_LEVEL,
   });
 
   info(message: string, meta: Record<string, unknown> = {}) {

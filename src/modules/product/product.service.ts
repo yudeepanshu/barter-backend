@@ -1,6 +1,7 @@
 import path from 'path';
 import { z } from 'zod';
 import prisma from '../../config/db';
+import { config } from '../../config/env';
 import redis from '../../config/redis';
 import { AppError } from '../../common/errors/AppError';
 import { S3BlobStorage } from './senders/s3Storage';
@@ -209,7 +210,12 @@ export const getProducts = async (filters: QueryProductsInput) => {
   };
 
   if (useCache && cacheKey) {
-    await redis.set(cacheKey, JSON.stringify(response), 'EX', 30);
+    await redis.set(
+      cacheKey,
+      JSON.stringify(response),
+      'EX',
+      config.PRODUCT_DISCOVERY_CACHE_TTL_SECONDS,
+    );
   }
 
   return response;

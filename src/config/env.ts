@@ -5,10 +5,22 @@ dotenv.config();
 export interface EnvConfig {
   PORT: number;
   NODE_ENV: string;
+  LOG_LEVEL: string;
+  CORS_ORIGIN: string;
   ACCESS_SECRET: string;
   REFRESH_SECRET: string;
+  JWT_ACCESS_EXPIRES_IN: string;
+  JWT_REFRESH_EXPIRES_IN: string;
   OTP_EXPIRY: number;
   MAX_ATTEMPTS: number;
+  OTP_REQUEST_COOLDOWN_SECONDS: number;
+  OTP_REQUEST_MAX_REQUESTS: number;
+  TRANSACTION_OTP_EXPIRY_SECONDS: number;
+  TRANSACTION_OTP_MAX_ATTEMPTS: number;
+  REQUEST_MAX_OVERRIDE_COUNT: number;
+  REQUEST_LAST_SAFE_OVERRIDE_COUNT: number;
+  REQUEST_OVERRIDE_COOLDOWN_DAYS: number;
+  PRODUCT_DISCOVERY_CACHE_TTL_SECONDS: number;
   REDIS_HOST: string;
   REDIS_PORT: number;
   ADMIN_KEY_HASH: string;
@@ -20,16 +32,32 @@ export interface EnvConfig {
     PROVIDER: string;
     S3_BUCKET: string;
     S3_REGION: string;
+    S3_ACCESS_KEY_ID: string;
+    S3_SECRET_ACCESS_KEY: string;
+    S3_PRESIGNED_URL_EXPIRES_IN_SECONDS: number;
   };
 }
 
 export const config: EnvConfig = {
   PORT: Number(process.env.PORT) || 8000,
   NODE_ENV: process.env.NODE_ENV || 'development',
+  LOG_LEVEL: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
+  CORS_ORIGIN: process.env.CORS_ORIGIN || '*',
   ACCESS_SECRET: process.env.ACCESS_SECRET || 'access_secret',
   REFRESH_SECRET: process.env.REFRESH_SECRET || 'refresh_secret',
+  JWT_ACCESS_EXPIRES_IN: process.env.JWT_ACCESS_EXPIRES_IN || '15m',
+  JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
   OTP_EXPIRY: Number(process.env.OTP_EXPIRY) || 300,
   MAX_ATTEMPTS: Number(process.env.MAX_ATTEMPTS) || 5,
+  OTP_REQUEST_COOLDOWN_SECONDS: Number(process.env.OTP_REQUEST_COOLDOWN_SECONDS) || 30,
+  OTP_REQUEST_MAX_REQUESTS: Number(process.env.OTP_REQUEST_MAX_REQUESTS) || 3,
+  TRANSACTION_OTP_EXPIRY_SECONDS: Number(process.env.TRANSACTION_OTP_EXPIRY_SECONDS) || 300,
+  TRANSACTION_OTP_MAX_ATTEMPTS: Number(process.env.TRANSACTION_OTP_MAX_ATTEMPTS) || 5,
+  REQUEST_MAX_OVERRIDE_COUNT: Number(process.env.REQUEST_MAX_OVERRIDE_COUNT) || 5,
+  REQUEST_LAST_SAFE_OVERRIDE_COUNT: Number(process.env.REQUEST_LAST_SAFE_OVERRIDE_COUNT) || 4,
+  REQUEST_OVERRIDE_COOLDOWN_DAYS: Number(process.env.REQUEST_OVERRIDE_COOLDOWN_DAYS) || 7,
+  PRODUCT_DISCOVERY_CACHE_TTL_SECONDS:
+    Number(process.env.PRODUCT_DISCOVERY_CACHE_TTL_SECONDS) || 30,
   REDIS_HOST: process.env.REDIS_HOST || '127.0.0.1',
   REDIS_PORT: Number(process.env.REDIS_PORT) || 6379,
   ADMIN_KEY_HASH:
@@ -42,5 +70,9 @@ export const config: EnvConfig = {
     PROVIDER: process.env.BLOB_STORAGE_PROVIDER || 's3',
     S3_BUCKET: process.env.S3_BUCKET_NAME || '',
     S3_REGION: process.env.S3_REGION || 'us-east-1',
+    S3_ACCESS_KEY_ID: process.env.S3_ACCESS_KEY_ID || '',
+    S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY || '',
+    S3_PRESIGNED_URL_EXPIRES_IN_SECONDS:
+      Number(process.env.S3_PRESIGNED_URL_EXPIRES_IN_SECONDS) || 3600,
   },
 };

@@ -1,9 +1,10 @@
 import { BlobStorage } from './interface';
 import { PutObjectCommand, DeleteObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { config } from '../../../config/env';
 
-const bucket = process.env.S3_BUCKET_NAME;
-const region = process.env.S3_REGION || 'us-east-1';
+const bucket = config.STORAGE.S3_BUCKET;
+const region = config.STORAGE.S3_REGION;
 
 if (!bucket) {
   throw new Error('S3_BUCKET_NAME is required for S3 blob storage');
@@ -12,8 +13,8 @@ if (!bucket) {
 const s3Client = new S3Client({
   region,
   credentials: {
-    accessKeyId: process.env.S3_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || '',
+    accessKeyId: config.STORAGE.S3_ACCESS_KEY_ID,
+    secretAccessKey: config.STORAGE.S3_SECRET_ACCESS_KEY,
   },
 });
 
@@ -51,7 +52,7 @@ export class S3BlobStorage implements BlobStorage {
   async getPresignedUrl({
     key,
     contentType,
-    expiresIn = 3600,
+    expiresIn = config.STORAGE.S3_PRESIGNED_URL_EXPIRES_IN_SECONDS,
   }: {
     key: string;
     contentType: string;

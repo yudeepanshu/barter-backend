@@ -23,7 +23,7 @@ export const sendOTP = async (identifier: string) => {
   // Cooldown
   const cooldown = await redis.exists(cooldownKey);
   if (cooldown) {
-    throw new Error('Wait 30 seconds before requesting again.');
+    throw new Error(`Wait ${config.OTP_REQUEST_COOLDOWN_SECONDS} seconds before requesting again.`);
   }
 
   // Rate limit
@@ -32,7 +32,7 @@ export const sendOTP = async (identifier: string) => {
     await redis.expire(rateKey, config.OTP_EXPIRY);
   }
 
-  if (count > 3) {
+  if (count > config.OTP_REQUEST_MAX_REQUESTS) {
     throw new Error('Too many OTP requests. Try later.');
   }
 
@@ -43,7 +43,7 @@ export const sendOTP = async (identifier: string) => {
   await redis.set(otpKey, otp, 'EX', config.OTP_EXPIRY);
 
   // Cooldown
-  await redis.set(cooldownKey, '1', 'EX', 30);
+  await redis.set(cooldownKey, '1', 'EX', config.OTP_REQUEST_COOLDOWN_SECONDS);
 
   // Send OTP
   console.log(`Generated OTP for ${normalized}: ${otp}`);

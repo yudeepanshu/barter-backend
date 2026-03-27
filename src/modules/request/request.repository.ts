@@ -1,4 +1,5 @@
 import { AppError } from '../../common/errors/AppError';
+import { config } from '../../config/env';
 import prisma from '../../config/db';
 
 // NOTE: VS Code can lag behind prisma generate for brand-new models.
@@ -12,9 +13,9 @@ type RequestTurn = 'BUYER' | 'SELLER';
 type OfferStatus = 'ACTIVE' | 'SUPERSEDED' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
 type CancelReason = 'USER_CANCELLED' | 'EXPIRED' | 'OVERRIDDEN' | 'REJECTED';
 
-const MAX_OVERRIDE_COUNT = 5;
-const LAST_SAFE_OVERRIDE_COUNT = 4;
-const OVERRIDE_COOLDOWN_DAYS = 7;
+const MAX_OVERRIDE_COUNT = config.REQUEST_MAX_OVERRIDE_COUNT;
+const LAST_SAFE_OVERRIDE_COUNT = config.REQUEST_LAST_SAFE_OVERRIDE_COUNT;
+const OVERRIDE_COOLDOWN_DAYS = config.REQUEST_OVERRIDE_COOLDOWN_DAYS;
 
 type CreateRequestRecordInput = {
   productId: string;

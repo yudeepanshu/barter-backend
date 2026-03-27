@@ -1,11 +1,12 @@
 import crypto from 'crypto';
 
 import { AppError } from '../../common/errors/AppError';
+import { config } from '../../config/env';
 import * as repo from './transaction.repository';
 import { GetActiveTransactionQueryInput, VerifyTransactionOtpInput } from './transaction.schema';
 
-const OTP_EXPIRY_MS = 5 * 60 * 1000;
-const OTP_MAX_ATTEMPTS = 5;
+const OTP_EXPIRY_MS = config.TRANSACTION_OTP_EXPIRY_SECONDS * 1000;
+const OTP_MAX_ATTEMPTS = config.TRANSACTION_OTP_MAX_ATTEMPTS;
 
 const generateNumericOtp = () => crypto.randomInt(100000, 1000000).toString();
 const hashOtp = (otp: string) => crypto.createHash('sha256').update(otp).digest('hex');

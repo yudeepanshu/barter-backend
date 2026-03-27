@@ -12,6 +12,10 @@ type RequestTurn = 'BUYER' | 'SELLER';
 type OfferStatus = 'ACTIVE' | 'SUPERSEDED' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
 type CancelReason = 'USER_CANCELLED' | 'EXPIRED' | 'OVERRIDDEN' | 'REJECTED';
 
+const MAX_OVERRIDE_COUNT = 5;
+const LAST_SAFE_OVERRIDE_COUNT = 4;
+const OVERRIDE_COOLDOWN_DAYS = 7;
+
 type CreateRequestRecordInput = {
   productId: string;
   buyerId: string;
@@ -418,15 +422,51 @@ export const acceptActiveOffer = async (
       throw new AppError('No active offer found to accept', 409);
     }
 
+    const product = await txDb.product.findUnique({
+      where: { id: request.productId },
+    });
+
+    if (!product) {
+      throw new AppError('Product not found', 404);
+    }
+
+    const now = new Date();
+    if (product.cooldownUntil && product.cooldownUntil > now) {
+      throw new AppError('Product is temporarily disabled due to excessive overrides', 409);
+    }
+
+    if (!product.isListed || (product.status !== 'ACTIVE' && product.status !== 'RESERVED')) {
+      throw new AppError('Product is not available for acceptance', 409);
+    }
+
     const previousReservation = await txDb.productReservation.findFirst({
       where: { productId: request.productId },
     });
+
+    let nextOverrideCount = product.overrideCount;
 
     if (
       previousReservation &&
       previousReservation.status === 'ACTIVE' &&
       previousReservation.requestId !== request.id
     ) {
+      if (product.overrideCount >= MAX_OVERRIDE_COUNT) {
+        const cooldownUntil = new Date(
+          now.getTime() + OVERRIDE_COOLDOWN_DAYS * 24 * 60 * 60 * 1000,
+        );
+
+        await txDb.product.update({
+          where: { id: request.productId },
+          data: {
+            status: 'REMOVED',
+            isListed: false,
+            cooldownUntil,
+          },
+        });
+
+        throw new AppError('Override limit exceeded. Product has been blocked for 7 days', 409);
+      }
+
       await txDb.request.update({
         where: { id: previousReservation.requestId },
         data: {
@@ -445,6 +485,46 @@ export const acceptActiveOffer = async (
         },
         data: {
           status: 'REJECTED',
+        },
+      });
+
+      await txDb.transaction.updateMany({
+        where: {
+          productId: request.productId,
+          requestId: previousReservation.requestId,
+          status: {
+            in: ['INITIATED', 'IN_PROGRESS'],
+          },
+        },
+        data: {
+          status: 'CANCELLED',
+          cancelledAt: now,
+          cancelledReason: 'OVERRIDDEN',
+        },
+      });
+
+      await txDb.transactionOTP.updateMany({
+        where: {
+          transaction: {
+            productId: request.productId,
+            requestId: previousReservation.requestId,
+            status: 'CANCELLED',
+          },
+          verifiedAt: null,
+          invalidatedAt: null,
+        },
+        data: {
+          invalidatedAt: now,
+        },
+      });
+
+      nextOverrideCount = product.overrideCount + 1;
+
+      await txDb.product.update({
+        where: { id: request.productId },
+        data: {
+          overrideCount: nextOverrideCount,
+          lastOverrideAt: now,
         },
       });
     }
@@ -466,8 +546,10 @@ export const acceptActiveOffer = async (
       where: { productId: request.productId },
     });
 
+    let reservationRecord;
+
     if (existingReservation) {
-      await txDb.productReservation.update({
+      reservationRecord = await txDb.productReservation.update({
         where: { id: existingReservation.id },
         data: {
           requestId: request.id,
@@ -481,7 +563,7 @@ export const acceptActiveOffer = async (
         },
       });
     } else {
-      await txDb.productReservation.create({
+      reservationRecord = await txDb.productReservation.create({
         data: {
           productId: request.productId,
           requestId: request.id,
@@ -495,15 +577,70 @@ export const acceptActiveOffer = async (
       });
     }
 
+    const existingTransaction = await txDb.transaction.findFirst({
+      where: { reservationId: reservationRecord.id },
+    });
+
+    if (existingTransaction) {
+      await txDb.transaction.update({
+        where: { id: existingTransaction.id },
+        data: {
+          productId: request.productId,
+          requestId: request.id,
+          offerId: activeOffer.id,
+          buyerId: request.buyerId,
+          sellerId: request.sellerId,
+          status: 'INITIATED',
+          startedAt: null,
+          completedAt: null,
+          cancelledAt: null,
+          cancelledReason: null,
+        },
+      });
+    } else {
+      await txDb.transaction.create({
+        data: {
+          reservationId: reservationRecord.id,
+          productId: request.productId,
+          requestId: request.id,
+          offerId: activeOffer.id,
+          buyerId: request.buyerId,
+          sellerId: request.sellerId,
+          status: 'INITIATED',
+        },
+      });
+    }
+
+    await txDb.transactionOTP.updateMany({
+      where: {
+        transaction: {
+          reservationId: reservationRecord.id,
+        },
+        verifiedAt: null,
+        invalidatedAt: null,
+      },
+      data: {
+        invalidatedAt: now,
+      },
+    });
+
     await txDb.product.update({
       where: { id: request.productId },
       data: { status: 'RESERVED' },
     });
 
-    return txDb.request.findUniqueOrThrow({
+    const acceptedRequest = await txDb.request.findUniqueOrThrow({
       where: { id: request.id },
       include: requestInclude,
     });
+
+    return {
+      request: acceptedRequest,
+      warning:
+        nextOverrideCount === LAST_SAFE_OVERRIDE_COUNT
+          ? 'Last safe override remaining before cooldown block.'
+          : null,
+    };
   });
 };
 

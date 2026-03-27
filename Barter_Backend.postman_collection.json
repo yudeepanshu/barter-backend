@@ -638,6 +638,32 @@
           }
         },
         {
+          "name": "Relist Product",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{currentProductId}}/relist",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "{{currentProductId}}",
+                "relist"
+              ]
+            },
+            "description": "Relist an exchanged or removed product (PROTECTED).\n\nRules:\n- Only current owner can relist\n- Product status must be EXCHANGED or REMOVED\n- Product must not be in cooldown\n- Product becomes ACTIVE and isListed=true\n- lifecycleVersion increments by 1\n\nFrontend identifiers available on product response:\n- isPreOwned\n- exchangeCount\n- lastExchangedAt"
+          }
+        },
+        {
           "name": "Get Product Ownership History",
           "request": {
             "method": "GET",
@@ -994,6 +1020,39 @@
         },
         {
           "name": "Accept Request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json;",
+                  "try {",
+                  "  json = pm.response.json();",
+                  "} catch (e) {",
+                  "  json = null;",
+                  "}",
+                  "",
+                  "const warning = json?.data?.warning;",
+                  "const reservationId = json?.data?.request?.reservations?.[0]?.id;",
+                  "",
+                  "if (warning) {",
+                  "  console.log('Accept warning:', warning);",
+                  "  pm.environment.set('lastAcceptWarning', String(warning));",
+                  "}",
+                  "",
+                  "if (reservationId) {",
+                  "  pm.environment.set('currentReservationId', String(reservationId));",
+                  "  pm.collectionVariables.set('currentReservationId', String(reservationId));",
+                  "}",
+                  "",
+                  "pm.test('Accept response parsed (non-blocking)', () => {",
+                  "  pm.expect(true).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "PATCH",
             "header": [
@@ -1015,7 +1074,7 @@
                 "accept"
               ]
             },
-            "description": "Accept active offer (PROTECTED).\n\nBehavior:\n- Request -> ACCEPTED\n- Active offer -> ACCEPTED\n- ProductReservation created/updated\n- Product -> RESERVED\n- If another request already held reservation for this product, that previous request is auto-rejected as OVERRIDDEN"
+            "description": "Accept active offer (PROTECTED).\n\nBehavior:\n- Request -> ACCEPTED\n- Active offer -> ACCEPTED\n- ProductReservation created/updated\n- Transaction created/reset -> INITIATED\n- Product -> RESERVED\n- If another request already held reservation for this product, that previous request is auto-rejected as OVERRIDDEN\n- Previous active transaction (if any) is cancelled and pending OTPs invalidated\n- response.data.warning is returned when override count reaches last safe threshold"
           }
         },
         {
@@ -1190,6 +1249,134 @@
           }
         }
       ]
+    },
+    {
+      "name": "Transactions",
+      "item": [
+        {
+          "name": "Get Active Transaction",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json;",
+                  "try {",
+                  "  json = pm.response.json();",
+                  "} catch (e) {",
+                  "  json = null;",
+                  "}",
+                  "",
+                  "const transactionId = json?.data?.id;",
+                  "if (transactionId) {",
+                  "  pm.environment.set('currentTransactionId', String(transactionId));",
+                  "  pm.collectionVariables.set('currentTransactionId', String(transactionId));",
+                  "}",
+                  "",
+                  "pm.test('Active transaction captured (non-blocking)', () => {",
+                  "  pm.expect(true).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/transactions/active?requestId={{currentRequestId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "transactions",
+                "active"
+              ],
+              "query": [
+                {
+                  "key": "requestId",
+                  "value": "{{currentRequestId}}",
+                  "disabled": false
+                },
+                {
+                  "key": "productId",
+                  "value": "{{currentProductId}}",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Get active transaction (status INITIATED or IN_PROGRESS) for current authenticated participant.\n\nProvide at least one:\n- requestId\n- productId"
+          }
+        },
+        {
+          "name": "Generate Transaction OTP (Buyer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "Buyer access token"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/transactions/{{currentTransactionId}}/otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "transactions",
+                "{{currentTransactionId}}",
+                "otp"
+              ]
+            },
+            "description": "Buyer generates 6-digit OTP (5 min expiry). Share OTP with seller at exchange time. Transaction status moves to IN_PROGRESS."
+          }
+        },
+        {
+          "name": "Verify Transaction OTP (Seller)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "Seller access token"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"otp\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/transactions/{{currentTransactionId}}/verify-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "transactions",
+                "{{currentTransactionId}}",
+                "verify-otp"
+              ]
+            },
+            "description": "Seller verifies buyer OTP. On success:\n- transaction -> COMPLETED\n- reservation -> COMPLETED\n- requested product owner transfers to buyer\n- accepted offered products transfer to the counterparty of the offer owner\n- all exchanged products become EXCHANGED and isListed=false\n- exchanged product identifiers update: isPreOwned=true, exchangeCount++, lastExchangedAt=now\n- new owner can later relist manually using PATCH /products/:id/relist"
+          }
+        }
+      ]
     }
   ],
   "variable": [
@@ -1258,6 +1445,18 @@
       "value": "",
       "type": "string",
       "description": "Latest request thread id captured from Create Product Request"
+    },
+    {
+      "key": "currentTransactionId",
+      "value": "",
+      "type": "string",
+      "description": "Active transaction id captured from Get Active Transaction"
+    },
+    {
+      "key": "lastAcceptWarning",
+      "value": "",
+      "type": "string",
+      "description": "Warning message from Accept Request when override threshold is near"
     }
   ]
 }

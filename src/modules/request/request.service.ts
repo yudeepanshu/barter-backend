@@ -269,12 +269,13 @@ export const acceptRequest = async (requestId: string, userId?: string) => {
   }
 
   const actorRole = getActorRoleFromRequest(request, userId);
-  const updated = await repo.acceptActiveOffer(requestId, userId, actorRole);
+  const result = await repo.acceptActiveOffer(requestId, userId, actorRole);
 
   return {
-    request: updated,
+    request: result.request,
+    warning: result.warning,
     internals: {
-      requestStatus: updated.status,
+      requestStatus: result.request.status,
       action: 'ACCEPTED',
     },
   };

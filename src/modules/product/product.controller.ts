@@ -4,9 +4,10 @@ import * as productService from './product.service';
 import {
   CreateProductInput,
   createProductSchema,
-  queryProductsSchema,
-  generatePresignedUrlsSchema,
   addProductImagesSchema,
+  generatePresignedUrlsSchema,
+  productIdParamSchema,
+  queryProductsSchema,
   transferOwnershipSchema,
 } from './product.schema';
 
@@ -24,16 +25,23 @@ export const getProducts = async (req: Request, res: Response) => {
 };
 
 export const getProduct = async (req: Request, res: Response) => {
-  const productId = req.params.id;
+  const { id: productId } = productIdParamSchema.parse(req.params);
   const product = await productService.getProductById(productId);
   return sendSuccess(res, product);
 };
 
 export const deleteProduct = async (req: Request, res: Response) => {
-  const productId = req.params.id;
+  const { id: productId } = productIdParamSchema.parse(req.params);
   const userId = req.user?.id;
   await productService.deleteProduct(productId, userId);
   return sendSuccess(res, null, 'Product deleted');
+};
+
+export const relistProduct = async (req: Request, res: Response) => {
+  const { id: productId } = productIdParamSchema.parse(req.params);
+  const userId = req.user?.id;
+  const product = await productService.relistProduct(productId, userId);
+  return sendSuccess(res, product, 'Product relisted');
 };
 
 export const deleteProductImage = async (req: Request, res: Response) => {

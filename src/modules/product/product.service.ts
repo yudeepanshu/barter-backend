@@ -237,6 +237,44 @@ export const deleteProduct = async (productId: string, userId: string) => {
   return repo.deleteProductById(productId);
 };
 
+export const relistProduct = async (productId: string, userId?: string) => {
+  if (!userId) {
+    throw new AppError('Unauthorized', 401);
+  }
+
+  const product = await getProductById(productId);
+  if (product.currentOwnerId !== userId) {
+    throw new AppError('You can only relist your own product', 403);
+  }
+
+  const now = new Date();
+
+  if (product.cooldownUntil && product.cooldownUntil > now) {
+    throw new AppError('Product is still in cooldown', 409);
+  }
+
+  if (product.isListed && product.status === 'ACTIVE') {
+    throw new AppError('Product is already active', 409);
+  }
+
+  if (product.status !== 'EXCHANGED' && product.status !== 'REMOVED') {
+    throw new AppError('Only exchanged or removed products can be relisted', 409);
+  }
+
+  return prisma.product.update({
+    where: { id: productId },
+    data: {
+      status: 'ACTIVE',
+      isListed: true,
+      lifecycleVersion: { increment: 1 },
+      overrideCount: 0,
+      lastOverrideAt: null,
+      cooldownUntil: null,
+    },
+    include: { productImages: true, category: true },
+  });
+};
+
 export const deleteProductImage = async (imageId: string, userId: string) => {
   const image = await prisma.productImage.findUnique({
     where: { id: imageId },

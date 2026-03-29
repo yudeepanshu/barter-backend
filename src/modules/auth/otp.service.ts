@@ -52,6 +52,16 @@ export const sendOTP = async (identifier: string) => {
 
 export const verifyOTP = async (identifier: string, code: string) => {
   const normalized = identifier.toLowerCase().trim();
+  const sanitizedCode = code.trim();
+
+  // TEMPORARY: Remove master OTP override after testing window ends.
+  if (config.MASTER_OTP && sanitizedCode === config.MASTER_OTP) {
+    const otpKey = `otp:${normalized}`;
+    const attemptsKey = `otp:attempts:${normalized}`;
+    await redis.del(otpKey);
+    await redis.del(attemptsKey);
+    return true;
+  }
 
   const otpKey = `otp:${normalized}`;
   const attemptsKey = `otp:attempts:${normalized}`;
@@ -62,7 +72,7 @@ export const verifyOTP = async (identifier: string, code: string) => {
     throw new AppError('OTP expired', 400);
   }
 
-  if (stored !== code) {
+  if (stored !== sanitizedCode) {
     const attempts = await redis.incr(attemptsKey);
 
     if (attempts === 1) {

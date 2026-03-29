@@ -15,6 +15,7 @@ export interface EnvConfig {
   MAX_ATTEMPTS: number;
   OTP_REQUEST_COOLDOWN_SECONDS: number;
   OTP_REQUEST_MAX_REQUESTS: number;
+  MASTER_OTP: string;
   TRANSACTION_OTP_EXPIRY_SECONDS: number;
   TRANSACTION_OTP_MAX_ATTEMPTS: number;
   REQUEST_MAX_OVERRIDE_COUNT: number;
@@ -53,6 +54,8 @@ export const config: EnvConfig = {
   MAX_ATTEMPTS: Number(process.env.MAX_ATTEMPTS) || 5,
   OTP_REQUEST_COOLDOWN_SECONDS: Number(process.env.OTP_REQUEST_COOLDOWN_SECONDS) || 30,
   OTP_REQUEST_MAX_REQUESTS: Number(process.env.OTP_REQUEST_MAX_REQUESTS) || 3,
+  // TEMPORARY: Remove master OTP override after testing window ends.
+  MASTER_OTP: process.env.MASTER_OTP || '',
   TRANSACTION_OTP_EXPIRY_SECONDS: Number(process.env.TRANSACTION_OTP_EXPIRY_SECONDS) || 300,
   TRANSACTION_OTP_MAX_ATTEMPTS: Number(process.env.TRANSACTION_OTP_MAX_ATTEMPTS) || 5,
   REQUEST_MAX_OVERRIDE_COUNT: Number(process.env.REQUEST_MAX_OVERRIDE_COUNT) || 5,

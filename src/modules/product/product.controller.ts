@@ -13,6 +13,8 @@ import {
   updateProductSchema,
 } from './product.schema';
 
+const getProductRouteId = (req: Request) => req.params.id || req.params.productId;
+
 export const createProduct = async (req: Request, res: Response) => {
   const payload = createProductSchema.parse(req.body) as CreateProductInput;
   const userId = req.user?.id;
@@ -61,7 +63,7 @@ export const deleteProductImage = async (req: Request, res: Response) => {
   return sendSuccess(res, null, 'Product image deleted');
 };
 export const transferProductOwnership = async (req: Request, res: Response) => {
-  const { productId } = req.params;
+  const productId = getProductRouteId(req);
   const { newOwnerId } = transferOwnershipSchema.parse(req.body);
   const userId = req.user?.id;
   const updatedProduct = await productService.transferProductOwnership(
@@ -73,13 +75,13 @@ export const transferProductOwnership = async (req: Request, res: Response) => {
 };
 
 export const getProductOwnershipHistory = async (req: Request, res: Response) => {
-  const { productId } = req.params;
+  const productId = getProductRouteId(req);
   const history = await productService.getProductOwnershipHistory(productId);
   return sendSuccess(res, history, 'Product ownership history');
 };
 
 export const generatePresignedUrls = async (req: Request, res: Response) => {
-  const { productId } = req.params;
+  const productId = getProductRouteId(req);
   const { fileNames } = generatePresignedUrlsSchema.parse(req.body);
   const userId = req.user?.id;
   const urls = await productService.generatePresignedUrls(productId, fileNames, userId);
@@ -87,7 +89,7 @@ export const generatePresignedUrls = async (req: Request, res: Response) => {
 };
 
 export const addProductImages = async (req: Request, res: Response) => {
-  const { productId } = req.params;
+  const productId = getProductRouteId(req);
   const { images } = addProductImagesSchema.parse(req.body);
   const userId = req.user?.id;
   const savedImages = await productService.addProductImagesFromUpload(productId, images, userId);

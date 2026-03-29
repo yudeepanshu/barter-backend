@@ -239,18 +239,11 @@ export const deleteProduct = async (productId: string, userId: string) => {
     throw new AppError('You can only delete your own products', 403);
   }
 
-  const images = product.productImages || [];
-
-  for (const image of images) {
-    try {
-      await storage.deleteFile(image.storageKey);
-    } catch (error) {
-      // Log and continue; deletion should not block product deletion by default
-      console.warn('Failed to delete image from storage', image.storageKey, error);
-    }
+  if (product.status === 'REMOVED' && product.isListed === false) {
+    throw new AppError('Product is already removed', 409);
   }
 
-  return repo.deleteProductById(productId);
+  return repo.markProductAsRemoved(productId);
 };
 
 export const updateProduct = async (

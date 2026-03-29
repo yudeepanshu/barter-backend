@@ -95,6 +95,17 @@ export const deleteProductById = async (id: string) => {
   return prisma.product.delete({ where: { id } });
 };
 
+export const markProductAsRemoved = async (id: string) => {
+  return prisma.product.update({
+    where: { id },
+    data: {
+      status: 'REMOVED',
+      isListed: false,
+    },
+    include: { productImages: true, category: true },
+  });
+};
+
 export const createProductOwnershipHistory = async (productId: string, ownerId: string) => {
   return prisma.productOwnershipHistory.create({
     data: {

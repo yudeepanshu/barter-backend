@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "dist/server.js",
   "scripts": {
-    "prepare": "husky install",
+    "prepare": "node -e \"if (process.env.CI === 'true' || process.env.NODE_ENV === 'production') process.exit(0); try { require('child_process').execSync('npx husky install', { stdio: 'inherit' }); } catch (_) { process.exit(0); }\"",
     "build": "tsc",
     "start": "npm run build && node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",

@@ -33,7 +33,6 @@ export class S3BlobStorage implements BlobStorage {
       Key: key,
       Body: buffer,
       ContentType: contentType,
-      ACL: 'public-read',
     });
 
     await s3Client.send(command);
@@ -62,7 +61,6 @@ export class S3BlobStorage implements BlobStorage {
       Bucket: bucket,
       Key: key,
       ContentType: contentType,
-      ACL: 'public-read',
     });
 
     const signedUrl = await getSignedUrl(s3Client, command, { expiresIn });

@@ -22,6 +22,42 @@ export const findUserByEmailOrPhone = async (email?: string, mobile?: string) =>
   });
 };
 
+export const findUserByEmail = async (email: string) => {
+  return prisma.user.findUnique({
+    where: { email },
+    select: { id: true },
+  });
+};
+
+export const findUserByMobile = async (mobileNumber: string) => {
+  return prisma.user.findUnique({
+    where: { mobileNumber },
+    select: { id: true },
+  });
+};
+
+export const updateUserById = async (
+  id: string,
+  data: {
+    userName?: string;
+    email?: string | null;
+    mobileNumber?: string | null;
+    profilePicture?: string | null;
+  },
+) => {
+  return prisma.user.update({
+    where: { id },
+    data,
+    select: {
+      id: true,
+      userName: true,
+      email: true,
+      mobileNumber: true,
+      profilePicture: true,
+    },
+  });
+};
+
 export const createUserTx = async (
   tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
   data: any,

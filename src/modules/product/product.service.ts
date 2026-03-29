@@ -106,6 +106,7 @@ const getCacheKey = (query: QueryProductsInput) => {
     status: query.status ?? 'ACTIVE,RESERVED',
     categoryId: query.categoryId ?? '',
     ownerId: query.ownerId ?? '',
+    excludeOwnerId: query.excludeOwnerId ?? '',
     search: query.search ?? '',
     limit: query.limit ?? 20,
     locationLat: query.locationLat ?? '',
@@ -141,6 +142,9 @@ export const getProducts = async (filters: QueryProductsInput) => {
 
   if (filters.categoryId) where.categoryId = filters.categoryId;
   if (filters.ownerId) where.currentOwnerId = filters.ownerId;
+  if (!filters.ownerId && filters.excludeOwnerId) {
+    where.currentOwnerId = { not: filters.excludeOwnerId };
+  }
 
   if (filters.search) {
     where.OR = [

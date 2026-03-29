@@ -65,6 +65,7 @@ export const queryProductsSchema = z.object({
   status: z.enum(['ACTIVE', 'RESERVED', 'EXCHANGED', 'REMOVED']).optional(),
   categoryId: z.string().uuid().optional(),
   ownerId: z.string().uuid().optional(),
+  excludeOwnerId: z.string().uuid().optional(),
   search: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).optional().default(20),
   cursor: z.string().optional(),

@@ -21,8 +21,10 @@ export interface EnvConfig {
   REQUEST_LAST_SAFE_OVERRIDE_COUNT: number;
   REQUEST_OVERRIDE_COOLDOWN_DAYS: number;
   PRODUCT_DISCOVERY_CACHE_TTL_SECONDS: number;
+  REDIS_URL: string;
   REDIS_HOST: string;
   REDIS_PORT: number;
+  REDIS_PASSWORD: string;
   ADMIN_KEY_HASH: string;
   EMAIL: {
     API_KEY: string;
@@ -58,8 +60,10 @@ export const config: EnvConfig = {
   REQUEST_OVERRIDE_COOLDOWN_DAYS: Number(process.env.REQUEST_OVERRIDE_COOLDOWN_DAYS) || 7,
   PRODUCT_DISCOVERY_CACHE_TTL_SECONDS:
     Number(process.env.PRODUCT_DISCOVERY_CACHE_TTL_SECONDS) || 30,
+  REDIS_URL: process.env.REDIS_URL || '',
   REDIS_HOST: process.env.REDIS_HOST || '127.0.0.1',
   REDIS_PORT: Number(process.env.REDIS_PORT) || 6379,
+  REDIS_PASSWORD: process.env.REDIS_PASSWORD || '',
   ADMIN_KEY_HASH:
     process.env.ADMIN_KEY_HASH || '$2a$10$wXAHnDqfPkKBYClIWL7sW.z7K1H7U3q8FjKz8X5FjKz8X5FjKz8X5',
   EMAIL: {

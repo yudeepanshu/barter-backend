@@ -24,14 +24,22 @@ export const createProduct = async (data: CreateProductInput & { currentOwnerId:
 
   return prisma.product.create({
     data: createData,
-    include: { productImages: true, category: true },
+    include: {
+      productImages: true,
+      category: true,
+      owner: { select: { id: true, userName: true, profilePicture: true } },
+    },
   });
 };
 
 export const findProductById = async (id: string) => {
   return prisma.product.findUnique({
     where: { id },
-    include: { productImages: true, category: true },
+    include: {
+      productImages: true,
+      category: true,
+      owner: { select: { id: true, userName: true, profilePicture: true } },
+    },
   });
 };
 
@@ -56,7 +64,11 @@ export const findProducts = async (filters: {
 
   return prisma.product.findMany({
     where,
-    include: { productImages: true, category: true },
+    include: {
+      productImages: true,
+      category: true,
+      owner: { select: { id: true, userName: true, profilePicture: true } },
+    },
     orderBy: { createdAt: 'desc' },
   });
 };
@@ -102,7 +114,11 @@ export const markProductAsRemoved = async (id: string) => {
       status: 'REMOVED',
       isListed: false,
     },
-    include: { productImages: true, category: true },
+    include: {
+      productImages: true,
+      category: true,
+      owner: { select: { id: true, userName: true, profilePicture: true } },
+    },
   });
 };
 

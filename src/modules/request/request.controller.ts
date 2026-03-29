@@ -6,6 +6,9 @@ import {
   createCounterOfferSchema,
   createRequestSchema,
   listRequestsQuerySchema,
+  requestContactRevealSchema,
+  respondContactRevealSchema,
+  revealRequestIdParamSchema,
   requestIdParamSchema,
 } from './request.schema';
 
@@ -72,4 +75,30 @@ export const getReceivedRequests = async (req: Request, res: Response) => {
   const userId = req.user?.id;
   const requests = await requestService.getReceivedRequests(query, userId);
   return sendSuccess(res, requests);
+};
+
+export const requestContactReveal = async (req: Request, res: Response) => {
+  const { id: requestId } = requestIdParamSchema.parse(req.params);
+  const payload = requestContactRevealSchema.parse(req.body);
+  const userId = req.user?.id;
+  const result = await requestService.requestContactReveal(requestId, payload, userId);
+  return sendSuccess(res, result, 'Contact reveal requested');
+};
+
+export const respondContactReveal = async (req: Request, res: Response) => {
+  const { id: requestId } = requestIdParamSchema.parse(req.params);
+  const { revealRequestId } = revealRequestIdParamSchema.parse(req.params);
+  const payload = respondContactRevealSchema.parse(req.body);
+  const userId = req.user?.id;
+  const result = await requestService.respondContactReveal(
+    requestId,
+    revealRequestId,
+    payload,
+    userId,
+  );
+  return sendSuccess(
+    res,
+    result,
+    payload.approve ? 'Contact reveal approved' : 'Contact reveal rejected',
+  );
 };

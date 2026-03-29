@@ -66,7 +66,21 @@ export const cancelRequestSchema = z.object({
   reason: z.string().trim().min(3).max(500),
 });
 
+export const requestContactRevealSchema = z.object({
+  note: z.string().trim().max(500).optional(),
+});
+
+export const revealRequestIdParamSchema = z.object({
+  revealRequestId: z.string().uuid(),
+});
+
+export const respondContactRevealSchema = z.object({
+  approve: z.boolean(),
+});
+
 export type CreateRequestInput = z.infer<typeof createRequestSchema>;
 export type ListRequestsQueryInput = z.infer<typeof listRequestsQuerySchema>;
 export type CreateCounterOfferInput = z.infer<typeof createCounterOfferSchema>;
 export type CancelRequestInput = z.infer<typeof cancelRequestSchema>;
+export type RequestContactRevealInput = z.infer<typeof requestContactRevealSchema>;
+export type RespondContactRevealInput = z.infer<typeof respondContactRevealSchema>;

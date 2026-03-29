@@ -28,6 +28,9 @@ model User {
   transactionsAsBuyer Transaction[] @relation("TransactionBuyer")
   transactionsAsSeller Transaction[] @relation("TransactionSeller")
   generatedTransactionOtps TransactionOTP[] @relation("TransactionOtpGeneratedFor")
+  contactRevealRequestsSent ContactRevealRequest[] @relation("ContactRevealRequester")
+  contactRevealRequestsReceived ContactRevealRequest[] @relation("ContactRevealTarget")
+  contactRevealRequestsResponded ContactRevealRequest[] @relation("ContactRevealResponder")
 }
 
 model Category {
@@ -137,6 +140,7 @@ model Request {
   visibleProducts RequestVisibleProduct[]
   reservations   ProductReservation[]
   transactions    Transaction[]
+  contactRevealRequests ContactRevealRequest[]
 
   @@unique([productId, buyerId, sellerId], name: "request_unique_buyer_product_seller")
   @@index([productId, status], name: "request_product_status_idx")
@@ -171,6 +175,8 @@ model ProductReservation {
   buyerId        String
   sellerId       String
   isContactVisible Boolean @default(false)
+  buyerCanViewSellerContact Boolean @default(false)
+  sellerCanViewBuyerContact Boolean @default(false)
   status         String   @default("ACTIVE")
   cancelledReason String?
   expiresAt      DateTime?
@@ -183,10 +189,35 @@ model ProductReservation {
   buyer   User @relation("ProductReservationBuyer", fields: [buyerId], references: [id])
   seller  User @relation("ProductReservationSeller", fields: [sellerId], references: [id])
   transaction Transaction?
+  contactRevealRequests ContactRevealRequest[]
 
   @@unique([productId], name: "product_single_active_reservation")
   @@index([buyerId, status], name: "reservation_buyer_status_idx")
   @@index([sellerId, status], name: "reservation_seller_status_idx")
+}
+
+model ContactRevealRequest {
+  id            String   @id @default(uuid())
+  reservationId String
+  requestId     String
+  requesterId   String
+  targetUserId  String
+  status        String   @default("PENDING")
+  requestedAt   DateTime @default(now())
+  respondedAt   DateTime?
+  respondedById String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  reservation ProductReservation @relation(fields: [reservationId], references: [id])
+  request     Request            @relation(fields: [requestId], references: [id])
+  requester   User               @relation("ContactRevealRequester", fields: [requesterId], references: [id])
+  targetUser  User               @relation("ContactRevealTarget", fields: [targetUserId], references: [id])
+  respondedBy User?              @relation("ContactRevealResponder", fields: [respondedById], references: [id])
+
+  @@unique([reservationId, requesterId, targetUserId], name: "contact_reveal_once_per_direction")
+  @@index([requestId, status], name: "contact_reveal_request_status_idx")
+  @@index([targetUserId, status], name: "contact_reveal_target_status_idx")
 }
 
 model Transaction {

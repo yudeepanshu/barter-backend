@@ -50,10 +50,25 @@ const requestInclude = {
     include: {
       productImages: true,
       category: true,
+      owner: {
+        select: {
+          id: true,
+          userName: true,
+          profilePicture: true,
+        },
+      },
     },
   },
-  buyer: true,
-  seller: true,
+  buyer: {
+    include: {
+      contactPreference: true,
+    },
+  },
+  seller: {
+    include: {
+      contactPreference: true,
+    },
+  },
   offers: {
     include: {
       offeredBy: true,
@@ -80,7 +95,12 @@ const requestInclude = {
       },
     },
   },
-  reservations: true,
+  reservations: {
+    include: {
+      contactRevealRequests: true,
+    },
+  },
+  contactRevealRequests: true,
 };
 
 export const findProductById = async (productId: string) => {
@@ -277,6 +297,108 @@ export const findRequestByIdForUser = async (requestId: string, userId: string) 
       OR: [{ buyerId: userId }, { sellerId: userId }],
     },
     include: requestInclude,
+  });
+};
+
+export const findContactRevealRequestById = async (revealRequestId: string) => {
+  return db.contactRevealRequest.findUnique({
+    where: { id: revealRequestId },
+  });
+};
+
+export const findActiveReservationForRequest = async (requestId: string) => {
+  return db.productReservation.findFirst({
+    where: {
+      requestId,
+      status: 'ACTIVE',
+    },
+    include: {
+      contactRevealRequests: true,
+    },
+  });
+};
+
+export const createContactRevealRequest = async (params: {
+  requestId: string;
+  reservationId: string;
+  requesterId: string;
+  targetUserId: string;
+}) => {
+  return db.contactRevealRequest.create({
+    data: {
+      requestId: params.requestId,
+      reservationId: params.reservationId,
+      requesterId: params.requesterId,
+      targetUserId: params.targetUserId,
+      status: 'PENDING',
+    },
+  });
+};
+
+export const respondContactRevealRequest = async (params: {
+  revealRequestId: string;
+  reservationId: string;
+  requestId: string;
+  requesterId: string;
+  targetUserId: string;
+  respondedById: string;
+  approve: boolean;
+}) => {
+  return db.$transaction(async (tx: any) => {
+    const txDb = tx as any;
+    const now = new Date();
+
+    await txDb.contactRevealRequest.update({
+      where: { id: params.revealRequestId },
+      data: {
+        status: params.approve ? 'APPROVED' : 'REJECTED',
+        respondedAt: now,
+        respondedById: params.respondedById,
+      },
+    });
+
+    if (params.approve) {
+      const reservation = await txDb.productReservation.findUnique({
+        where: { id: params.reservationId },
+        select: {
+          buyerId: true,
+          sellerId: true,
+        },
+      });
+
+      if (!reservation) {
+        throw new AppError('Reservation not found', 404);
+      }
+
+      if (
+        params.requesterId === reservation.buyerId &&
+        params.targetUserId === reservation.sellerId
+      ) {
+        await txDb.productReservation.update({
+          where: { id: params.reservationId },
+          data: {
+            buyerCanViewSellerContact: true,
+            isContactVisible: true,
+          },
+        });
+      } else if (
+        params.requesterId === reservation.sellerId &&
+        params.targetUserId === reservation.buyerId
+      ) {
+        await txDb.productReservation.update({
+          where: { id: params.reservationId },
+          data: {
+            sellerCanViewBuyerContact: true,
+            isContactVisible: true,
+          },
+        });
+      }
+    }
+
+    return txDb.request.findUniqueOrThrow({
+      where: { id: params.requestId },
+      include: requestInclude,
+    });
   });
 };
 

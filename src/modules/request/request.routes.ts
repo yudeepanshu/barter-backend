@@ -13,6 +13,12 @@ router.post('/:id/offers', protect, asyncHandler(requestController.createCounter
 router.patch('/:id/accept', protect, asyncHandler(requestController.acceptRequest));
 router.patch('/:id/reject', protect, asyncHandler(requestController.rejectRequest));
 router.patch('/:id/cancel', protect, asyncHandler(requestController.cancelRequest));
+router.post('/:id/contact-reveal', protect, asyncHandler(requestController.requestContactReveal));
+router.post(
+  '/:id/contact-reveal/:revealRequestId/respond',
+  protect,
+  asyncHandler(requestController.respondContactReveal),
+);
 router.get('/:id', protect, asyncHandler(requestController.getRequestById));
 
 export default router;

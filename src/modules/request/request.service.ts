@@ -5,6 +5,8 @@ import {
   CreateCounterOfferInput,
   CreateRequestInput,
   ListRequestsQueryInput,
+  RequestContactRevealInput,
+  RespondContactRevealInput,
 } from './request.schema';
 
 type RequestActorRole = 'BUYER' | 'SELLER';
@@ -98,6 +100,106 @@ const getActorRoleFromRequest = (
   throw new AppError('Forbidden', 403);
 };
 
+const getActiveReservation = (request: any) => {
+  const reservations = request?.reservations ?? [];
+  return reservations.find((reservation: any) => reservation.status === 'ACTIVE') ?? null;
+};
+
+const viewerCanSeeCounterpartyContact = (request: any, actorRole: RequestActorRole) => {
+  const reservation = getActiveReservation(request);
+  if (!reservation) {
+    return false;
+  }
+
+  if (reservation.isContactVisible) {
+    return true;
+  }
+
+  return actorRole === 'BUYER'
+    ? Boolean(reservation.buyerCanViewSellerContact)
+    : Boolean(reservation.sellerCanViewBuyerContact);
+};
+
+const mapRequestForViewer = (request: any, userId: string) => {
+  const actorRole = getActorRoleFromRequest(request, userId);
+  const reservation = getActiveReservation(request);
+  const revealRequests = reservation?.contactRevealRequests ?? [];
+  const counterparty = actorRole === 'BUYER' ? request.seller : request.buyer;
+
+  const counterpartyContactVisible = viewerCanSeeCounterpartyContact(request, actorRole);
+  const viewerRevealRequest = revealRequests.find(
+    (reveal: any) => reveal.requesterId === userId && reveal.targetUserId === counterparty.id,
+  );
+  const incomingPendingReveal = revealRequests.find(
+    (reveal: any) =>
+      reveal.requesterId === counterparty.id &&
+      reveal.targetUserId === userId &&
+      reveal.status === 'PENDING',
+  );
+
+  const canRequestReveal = Boolean(
+    reservation &&
+    request.status === 'ACCEPTED' &&
+    request.product?.status === 'RESERVED' &&
+    !viewerRevealRequest &&
+    !counterpartyContactVisible,
+  );
+
+  const sanitizedCounterparty = {
+    ...counterparty,
+    email: counterpartyContactVisible ? (counterparty.email ?? null) : null,
+    mobileNumber: counterpartyContactVisible ? (counterparty.mobileNumber ?? null) : null,
+  };
+
+  const sanitizedOffers = (request.offers ?? []).map((offer: any) => {
+    if (!offer?.offeredBy || offer.offeredBy.id !== counterparty.id || counterpartyContactVisible) {
+      return offer;
+    }
+
+    return {
+      ...offer,
+      offeredBy: {
+        ...offer.offeredBy,
+        email: null,
+        mobileNumber: null,
+      },
+    };
+  });
+
+  return {
+    ...request,
+    buyer: actorRole === 'BUYER' ? request.buyer : sanitizedCounterparty,
+    seller: actorRole === 'SELLER' ? request.seller : sanitizedCounterparty,
+    offers: sanitizedOffers,
+    contactReveal: {
+      reservationId: reservation?.id ?? null,
+      canRequestReveal,
+      canApproveIncoming: Boolean(incomingPendingReveal),
+      viewerRequestStatus: viewerRevealRequest?.status ?? 'NONE',
+      incomingRequestId: incomingPendingReveal?.id ?? null,
+      incomingRequestStatus: incomingPendingReveal?.status ?? null,
+      contactVisible: counterpartyContactVisible,
+    },
+  };
+};
+
+const assertTargetHasContactForApproval = (request: any, targetUserId: string) => {
+  const targetUser = request.buyerId === targetUserId ? request.buyer : request.seller;
+  const pref = request.contactPreference;
+
+  if (pref === 'PHONE' && !targetUser.mobileNumber) {
+    throw new AppError('Please add your phone number in profile before approving reveal', 409);
+  }
+
+  if (pref === 'EMAIL' && !targetUser.email) {
+    throw new AppError('Please add your email in profile before approving reveal', 409);
+  }
+
+  if (pref === 'BOTH' && !targetUser.mobileNumber && !targetUser.email) {
+    throw new AppError('Please add phone or email in profile before approving reveal', 409);
+  }
+};
+
 export const createRequest = async (payload: CreateRequestInput, buyerId?: string) => {
   if (!buyerId) {
     throw new AppError('Unauthorized', 401);
@@ -176,7 +278,7 @@ export const createRequest = async (payload: CreateRequestInput, buyerId?: strin
   });
 
   return {
-    request,
+    request: mapRequestForViewer(request, buyerId),
     warning,
     isUpdate: !!existingThread,
     internals: {
@@ -249,7 +351,7 @@ export const createCounterOffer = async (
   });
 
   return {
-    request: updated,
+    request: mapRequestForViewer(updated, userId),
     internals: {
       requestStatus: updated.status,
       currentTurn: updated.currentTurn,
@@ -272,7 +374,7 @@ export const acceptRequest = async (requestId: string, userId?: string) => {
   const result = await repo.acceptActiveOffer(requestId, userId, actorRole);
 
   return {
-    request: result.request,
+    request: mapRequestForViewer(result.request, userId),
     warning: result.warning,
     internals: {
       requestStatus: result.request.status,
@@ -295,7 +397,7 @@ export const rejectRequest = async (requestId: string, userId?: string) => {
   const updated = await repo.rejectRequest(requestId, userId, actorRole);
 
   return {
-    request: updated,
+    request: mapRequestForViewer(updated, userId),
     internals: {
       requestStatus: updated.status,
       action: 'REJECTED',
@@ -321,7 +423,7 @@ export const cancelRequest = async (
   const updated = await repo.cancelRequest(requestId, userId, actorRole, payload.reason);
 
   return {
-    request: updated,
+    request: mapRequestForViewer(updated, userId),
     internals: {
       requestStatus: updated.status,
       action: 'CANCELLED',
@@ -339,7 +441,7 @@ export const getRequestById = async (requestId: string, userId?: string) => {
     throw new AppError('Request not found', 404);
   }
 
-  return request;
+  return mapRequestForViewer(request, userId);
 };
 
 export const getRequestOffers = async (requestId: string, userId?: string) => {
@@ -356,7 +458,8 @@ export const getSentRequests = async (query: ListRequestsQueryInput, userId?: st
   }
 
   const results = await repo.listBuyerRequests(userId, query.status, query.limit, query.cursor);
-  return buildPaginatedResponse(results, query.limit);
+  const mapped = results.map((request: any) => mapRequestForViewer(request, userId));
+  return buildPaginatedResponse(mapped, query.limit);
 };
 
 export const getReceivedRequests = async (query: ListRequestsQueryInput, userId?: string) => {
@@ -365,5 +468,115 @@ export const getReceivedRequests = async (query: ListRequestsQueryInput, userId?
   }
 
   const results = await repo.listSellerRequests(userId, query.status, query.limit, query.cursor);
-  return buildPaginatedResponse(results, query.limit);
+  const mapped = results.map((request: any) => mapRequestForViewer(request, userId));
+  return buildPaginatedResponse(mapped, query.limit);
+};
+
+export const requestContactReveal = async (
+  requestId: string,
+  _payload: RequestContactRevealInput,
+  userId?: string,
+) => {
+  if (!userId) {
+    throw new AppError('Unauthorized', 401);
+  }
+
+  const request = await repo.findRequestByIdForUser(requestId, userId);
+  if (!request) {
+    throw new AppError('Request not found', 404);
+  }
+
+  if (request.status !== 'ACCEPTED' || request.product.status !== 'RESERVED') {
+    throw new AppError('Contact reveal is only available for accepted reserved requests', 409);
+  }
+
+  const reservation = getActiveReservation(request);
+  if (!reservation) {
+    throw new AppError('No active reservation found for this request', 409);
+  }
+
+  const actorRole = getActorRoleFromRequest(request, userId);
+  const targetUserId = actorRole === 'BUYER' ? request.sellerId : request.buyerId;
+
+  const alreadyVisible = viewerCanSeeCounterpartyContact(request, actorRole);
+  if (alreadyVisible) {
+    throw new AppError('Contact info is already revealed', 409);
+  }
+
+  const existingRequest = reservation.contactRevealRequests.find(
+    (reveal: any) => reveal.requesterId === userId && reveal.targetUserId === targetUserId,
+  );
+  if (existingRequest) {
+    throw new AppError('You can request contact reveal only once for this reservation', 409);
+  }
+
+  await repo.createContactRevealRequest({
+    requestId,
+    reservationId: reservation.id,
+    requesterId: userId,
+    targetUserId,
+  });
+
+  const refreshed = await repo.findRequestByIdForUser(requestId, userId);
+  if (!refreshed) {
+    throw new AppError('Request not found', 404);
+  }
+
+  return {
+    request: mapRequestForViewer(refreshed, userId),
+  };
+};
+
+export const respondContactReveal = async (
+  requestId: string,
+  revealRequestId: string,
+  payload: RespondContactRevealInput,
+  userId?: string,
+) => {
+  if (!userId) {
+    throw new AppError('Unauthorized', 401);
+  }
+
+  const request = await repo.findRequestByIdForUser(requestId, userId);
+  if (!request) {
+    throw new AppError('Request not found', 404);
+  }
+
+  const reservation = getActiveReservation(request);
+  if (!reservation) {
+    throw new AppError('No active reservation found for this request', 409);
+  }
+
+  const revealRequest = reservation.contactRevealRequests.find(
+    (reveal: any) => reveal.id === revealRequestId,
+  );
+  if (!revealRequest) {
+    throw new AppError('Reveal request not found', 404);
+  }
+
+  if (revealRequest.targetUserId !== userId) {
+    throw new AppError('Only the target user can respond to this reveal request', 403);
+  }
+
+  if (revealRequest.status !== 'PENDING') {
+    throw new AppError('Reveal request is already resolved', 409);
+  }
+
+  if (payload.approve) {
+    assertTargetHasContactForApproval(request, userId);
+  }
+
+  const updated = await repo.respondContactRevealRequest({
+    revealRequestId,
+    reservationId: reservation.id,
+    requestId,
+    requesterId: revealRequest.requesterId,
+    targetUserId: revealRequest.targetUserId,
+    respondedById: userId,
+    approve: payload.approve,
+  });
+
+  return {
+    request: mapRequestForViewer(updated, userId),
+  };
 };

@@ -62,7 +62,11 @@ export const transferProductOwnership = async (
   const updated = await prisma.product.update({
     where: { id: productId },
     data: { currentOwnerId: newOwnerId },
-    include: { productImages: true, category: true },
+    include: {
+      productImages: true,
+      category: true,
+      owner: { select: { id: true, userName: true, profilePicture: true } },
+    },
   });
 
   await repo.createProductOwnershipHistory(productId, newOwnerId);
@@ -181,7 +185,11 @@ export const getProducts = async (filters: QueryProductsInput) => {
 
   let products = await prisma.product.findMany({
     where: actualWhere,
-    include: { productImages: true, category: true },
+    include: {
+      productImages: true,
+      category: true,
+      owner: { select: { id: true, userName: true, profilePicture: true } },
+    },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: limit + 1,
   });
@@ -282,7 +290,11 @@ export const updateProduct = async (
   return prisma.product.update({
     where: { id: productId },
     data: updateData,
-    include: { productImages: true, category: true },
+    include: {
+      productImages: true,
+      category: true,
+      owner: { select: { id: true, userName: true, profilePicture: true } },
+    },
   });
 };
 
@@ -320,7 +332,11 @@ export const relistProduct = async (productId: string, userId?: string) => {
       lastOverrideAt: null,
       cooldownUntil: null,
     },
-    include: { productImages: true, category: true },
+    include: {
+      productImages: true,
+      category: true,
+      owner: { select: { id: true, userName: true, profilePicture: true } },
+    },
   });
 };
 

@@ -362,6 +362,13 @@ export const generatePresignedUrls = async (
   }
 
   const urls = [];
+  const mimeTypeByExt: Record<string, string> = {
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.webp': 'image/webp',
+  };
+
   for (const fileName of fileNames) {
     // Validate file extension
     const ext = path.extname(fileName).toLowerCase();
@@ -376,7 +383,7 @@ export const generatePresignedUrls = async (
       key: storageKey,
     } = await storage.getPresignedUrl({
       key,
-      contentType: `image/${ext.slice(1)}`,
+      contentType: mimeTypeByExt[ext],
     });
 
     urls.push({ signedUrl, publicUrl, storageKey, fileName });

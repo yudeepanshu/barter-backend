@@ -4,6 +4,7 @@ export const requestStatusSchema = z.enum([
   'PENDING',
   'NEGOTIATING',
   'ACCEPTED',
+  'COMPLETED',
   'REJECTED',
   'EXPIRED',
   'CANCELLED',

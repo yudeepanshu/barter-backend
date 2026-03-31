@@ -125,6 +125,11 @@ const mapRequestForViewer = (request: any, userId: string) => {
   const reservation = getActiveReservation(request);
   const revealRequests = reservation?.contactRevealRequests ?? [];
   const counterparty = actorRole === 'BUYER' ? request.seller : request.buyer;
+  const resolvedStatus =
+    request.status === 'ACCEPTED' &&
+    (reservation?.status === 'COMPLETED' || request.product?.status === 'EXCHANGED')
+      ? 'COMPLETED'
+      : request.status;
 
   const counterpartyContactVisible = viewerCanSeeCounterpartyContact(request, actorRole);
   const viewerRevealRequest = revealRequests.find(
@@ -139,7 +144,7 @@ const mapRequestForViewer = (request: any, userId: string) => {
 
   const canRequestReveal = Boolean(
     reservation &&
-    request.status === 'ACCEPTED' &&
+    resolvedStatus === 'ACCEPTED' &&
     request.product?.status === 'RESERVED' &&
     !viewerRevealRequest &&
     !counterpartyContactVisible,
@@ -168,6 +173,7 @@ const mapRequestForViewer = (request: any, userId: string) => {
 
   return {
     ...request,
+    status: resolvedStatus,
     buyer: actorRole === 'BUYER' ? request.buyer : sanitizedCounterparty,
     seller: actorRole === 'SELLER' ? request.seller : sanitizedCounterparty,
     offers: sanitizedOffers,

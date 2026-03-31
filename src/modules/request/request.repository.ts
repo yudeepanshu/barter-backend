@@ -6,7 +6,14 @@ import prisma from '../../config/db';
 // Use local aliases to avoid false red squiggles while preserving runtime behavior.
 const db = prisma as any;
 
-type RequestStatus = 'PENDING' | 'NEGOTIATING' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED' | 'CANCELLED';
+type RequestStatus =
+  | 'PENDING'
+  | 'NEGOTIATING'
+  | 'ACCEPTED'
+  | 'COMPLETED'
+  | 'REJECTED'
+  | 'EXPIRED'
+  | 'CANCELLED';
 type OfferType = 'PRODUCT' | 'MONEY' | 'MIXED' | 'NONE';
 type ContactPreference = 'PHONE' | 'EMAIL' | 'BOTH';
 type RequestTurn = 'BUYER' | 'SELLER';

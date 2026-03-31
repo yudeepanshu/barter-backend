@@ -107,6 +107,15 @@ const requestInclude = {
       contactRevealRequests: true,
     },
   },
+  transactions: {
+    select: {
+      id: true,
+      status: true,
+      completedAt: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  },
   contactRevealRequests: true,
 };
 
@@ -908,6 +917,40 @@ const buildCursorCondition = (cursor?: string) => {
   };
 };
 
+const buildLegacyCompletedRequestCondition = () => ({
+  status: 'ACCEPTED' as const,
+  reservations: {
+    some: {
+      status: 'COMPLETED' as const,
+    },
+  },
+  transactions: {
+    some: {
+      status: 'COMPLETED' as const,
+    },
+  },
+});
+
+const buildRequestStatusCondition = (status?: RequestStatus) => {
+  if (!status) {
+    return undefined;
+  }
+
+  if (status === 'COMPLETED') {
+    return {
+      OR: [{ status: 'COMPLETED' as const }, buildLegacyCompletedRequestCondition()],
+    };
+  }
+
+  if (status === 'ACCEPTED') {
+    return {
+      AND: [{ status: 'ACCEPTED' as const }, { NOT: buildLegacyCompletedRequestCondition() }],
+    };
+  }
+
+  return { status };
+};
+
 export const listBuyerRequests = async (
   buyerId: string,
   status: RequestStatus | undefined,
@@ -915,13 +958,11 @@ export const listBuyerRequests = async (
   cursor?: string,
 ) => {
   const cursorCondition = buildCursorCondition(cursor);
+  const statusCondition = buildRequestStatusCondition(status);
+  const conditions = [{ buyerId }, statusCondition, cursorCondition].filter(Boolean);
 
   return db.request.findMany({
-    where: {
-      buyerId,
-      ...(status ? { status } : {}),
-      ...(cursorCondition ? { AND: [cursorCondition] } : {}),
-    },
+    where: conditions.length === 1 ? conditions[0] : { AND: conditions },
     include: requestInclude,
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: limit + 1,
@@ -935,13 +976,11 @@ export const listSellerRequests = async (
   cursor?: string,
 ) => {
   const cursorCondition = buildCursorCondition(cursor);
+  const statusCondition = buildRequestStatusCondition(status);
+  const conditions = [{ sellerId }, statusCondition, cursorCondition].filter(Boolean);
 
   return db.request.findMany({
-    where: {
-      sellerId,
-      ...(status ? { status } : {}),
-      ...(cursorCondition ? { AND: [cursorCondition] } : {}),
-    },
+    where: conditions.length === 1 ? conditions[0] : { AND: conditions },
     include: requestInclude,
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: limit + 1,

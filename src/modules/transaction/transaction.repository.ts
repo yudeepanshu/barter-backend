@@ -416,6 +416,13 @@ export const completeTransaction = async (params: { transactionId: string; otpId
       },
     });
 
+    await txDb.request.update({
+      where: { id: transaction.requestId },
+      data: {
+        status: 'COMPLETED',
+      },
+    });
+
     await cancelActiveProductWorkflows(
       txDb,
       transfers.map((transfer) => transfer.productId),

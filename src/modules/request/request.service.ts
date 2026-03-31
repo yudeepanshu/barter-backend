@@ -105,6 +105,49 @@ const getActiveReservation = (request: any) => {
   return reservations.find((reservation: any) => reservation.status === 'ACTIVE') ?? null;
 };
 
+const getCompletedReservation = (request: any) => {
+  const reservations = request?.reservations ?? [];
+  const completedReservations = reservations
+    .filter((reservation: any) => reservation.status === 'COMPLETED')
+    .sort(
+      (left: any, right: any) =>
+        new Date(right.updatedAt ?? right.createdAt ?? 0).getTime() -
+        new Date(left.updatedAt ?? left.createdAt ?? 0).getTime(),
+    );
+
+  return completedReservations[0] ?? null;
+};
+
+const getCompletedTransaction = (request: any) => {
+  const transactions = request?.transactions ?? [];
+  const completedTransactions = transactions
+    .filter((transaction: any) => transaction.status === 'COMPLETED')
+    .sort(
+      (left: any, right: any) =>
+        new Date(right.completedAt ?? right.updatedAt ?? right.createdAt ?? 0).getTime() -
+        new Date(left.completedAt ?? left.updatedAt ?? left.createdAt ?? 0).getTime(),
+    );
+
+  return completedTransactions[0] ?? null;
+};
+
+const getStatusReservation = (request: any) => {
+  const activeReservation = getActiveReservation(request);
+  if (activeReservation) {
+    return activeReservation;
+  }
+
+  return getCompletedReservation(request);
+};
+
+const isLegacyCompletedRequest = (request: any) => {
+  return Boolean(
+    request.status === 'ACCEPTED' &&
+    getCompletedReservation(request) &&
+    getCompletedTransaction(request),
+  );
+};
+
 const viewerCanSeeCounterpartyContact = (request: any, actorRole: RequestActorRole) => {
   const reservation = getActiveReservation(request);
   if (!reservation) {
@@ -122,14 +165,10 @@ const viewerCanSeeCounterpartyContact = (request: any, actorRole: RequestActorRo
 
 const mapRequestForViewer = (request: any, userId: string) => {
   const actorRole = getActorRoleFromRequest(request, userId);
-  const reservation = getActiveReservation(request);
+  const reservation = getStatusReservation(request);
   const revealRequests = reservation?.contactRevealRequests ?? [];
   const counterparty = actorRole === 'BUYER' ? request.seller : request.buyer;
-  const resolvedStatus =
-    request.status === 'ACCEPTED' &&
-    (reservation?.status === 'COMPLETED' || request.product?.status === 'EXCHANGED')
-      ? 'COMPLETED'
-      : request.status;
+  const resolvedStatus = isLegacyCompletedRequest(request) ? 'COMPLETED' : request.status;
 
   const counterpartyContactVisible = viewerCanSeeCounterpartyContact(request, actorRole);
   const viewerRevealRequest = revealRequests.find(

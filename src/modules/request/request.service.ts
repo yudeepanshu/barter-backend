@@ -1,5 +1,7 @@
 import { AppError } from '../../common/errors/AppError';
 import * as repo from './request.repository';
+import { logger } from '../../config/logger';
+import { dispatchNotificationToUser } from '../notification/notification.service';
 import {
   CancelRequestInput,
   CreateCounterOfferInput,
@@ -320,6 +322,25 @@ export const createRequest = async (payload: CreateRequestInput, buyerId?: strin
     amount: payload.amount,
     offeredProducts: payload.offeredProducts,
     visibleProducts: payload.visibleProducts,
+  });
+
+  dispatchNotificationToUser({
+    userId: product.currentOwnerId,
+    type: 'REQUEST_CREATED',
+    title: 'New request received',
+    body: `${request.buyer.userName} requested your listing ${product.title}`,
+    data: {
+      requestId: request.id,
+      productId: product.id,
+      buyerId: buyerId,
+      buyerName: request.buyer.userName,
+    },
+  }).catch((error) => {
+    logger.warn('Failed to dispatch request-created notification', {
+      requestId: request.id,
+      sellerId: product.currentOwnerId,
+      reason: error instanceof Error ? error.message : 'unknown',
+    });
   });
 
   return {

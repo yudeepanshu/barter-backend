@@ -34,6 +34,7 @@ export interface EnvConfig {
     API_KEY: string;
     FROM: string;
   };
+  EXPO_PUSH_ACCESS_TOKEN: string;
   STORAGE: {
     PROVIDER: string;
     S3_BUCKET: string;
@@ -80,6 +81,7 @@ export const config: EnvConfig = {
     API_KEY: process.env.RESEND_API_KEY || '',
     FROM: process.env.EMAIL_FROM || 'noreply@barter.com',
   },
+  EXPO_PUSH_ACCESS_TOKEN: process.env.EXPO_PUSH_ACCESS_TOKEN || '',
   STORAGE: {
     PROVIDER: process.env.BLOB_STORAGE_PROVIDER || 's3',
     S3_BUCKET: process.env.S3_BUCKET_NAME || '',

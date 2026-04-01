@@ -5,6 +5,7 @@ import productRoutes from '../modules/product/product.routes';
 import categoryRoutes from '../modules/category/category.routes';
 import requestRoutes from '../modules/request/request.routes';
 import transactionRoutes from '../modules/transaction/transaction.routes';
+import notificationRoutes from '../modules/notification/notification.routes';
 
 const router = Router();
 
@@ -14,5 +15,6 @@ router.use('/categories', categoryRoutes);
 router.use('/products', productRoutes);
 router.use('/requests', requestRoutes);
 router.use('/transactions', transactionRoutes);
+router.use('/notifications', notificationRoutes);
 
 export default router;

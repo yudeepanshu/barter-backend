@@ -31,6 +31,8 @@ model User {
   contactRevealRequestsSent ContactRevealRequest[] @relation("ContactRevealRequester")
   contactRevealRequestsReceived ContactRevealRequest[] @relation("ContactRevealTarget")
   contactRevealRequestsResponded ContactRevealRequest[] @relation("ContactRevealResponder")
+  pushDevices       PushDevice[]
+  notifications     Notification[]
 }
 
 model Category {
@@ -293,4 +295,39 @@ model RequestVisibleProduct {
 
   @@unique([requestId, productId], name: "request_visible_product_unique")
   @@index([productId], name: "request_visible_product_product_idx")
+}
+
+model PushDevice {
+  id            String   @id @default(uuid())
+  userId        String
+  expoPushToken String   @unique
+  platform      String?
+  deviceId      String?
+  isActive      Boolean  @default(true)
+  lastSeenAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, expoPushToken], name: "push_device_user_token_unique")
+  @@index([userId, isActive], name: "push_device_user_active_idx")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  title     String
+  body      String
+  data      Json?
+  isRead    Boolean  @default(false)
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt, id], name: "notification_user_cursor_idx")
+  @@index([userId, isRead], name: "notification_user_read_idx")
 }

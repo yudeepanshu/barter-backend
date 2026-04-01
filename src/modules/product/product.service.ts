@@ -9,6 +9,8 @@ import * as repo from './product.repository';
 import { CreateProductInput, UpdateProductInput, queryProductsSchema } from './product.schema';
 
 const storage = new S3BlobStorage();
+const INACTIVE_EXPIRY_DAYS = config.INACTIVE_PRODUCT_EXPIRY_DAYS;
+const INACTIVE_EXPIRY_MS = INACTIVE_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
 
 export const createProduct = async (data: CreateProductInput, userId?: string) => {
   if (!userId) {
@@ -139,7 +141,7 @@ export const getProducts = async (filters: QueryProductsInput) => {
     status: filters.status
       ? filters.status
       : isOwnerQuery
-        ? { in: ['ACTIVE', 'RESERVED', 'EXCHANGED', 'REMOVED'] }
+        ? { in: ['ACTIVE', 'INACTIVE', 'RESERVED', 'EXCHANGED', 'REMOVED'] }
         : { in: ['ACTIVE', 'RESERVED'] },
     ...(isOwnerQuery ? {} : { isListed: true }),
   };
@@ -217,12 +219,24 @@ export const getProducts = async (filters: QueryProductsInput) => {
   const hasMore = products.length > limit;
   if (hasMore) products = products.slice(0, limit);
 
+  const items = products.map((product) => {
+    const inactiveRemovesAt =
+      product.status === 'INACTIVE'
+        ? new Date(product.updatedAt.getTime() + INACTIVE_EXPIRY_MS)
+        : null;
+
+    return {
+      ...product,
+      inactiveRemovesAt,
+    };
+  });
+
   const nextCursor = hasMore
     ? encodeCursor(products[products.length - 1].createdAt, products[products.length - 1].id)
     : null;
 
   const response = {
-    items: products,
+    items,
     nextCursor,
     hasMore,
   };
@@ -287,6 +301,10 @@ export const updateProduct = async (
     ...(payload.isFree !== undefined ? { isFree: payload.isFree } : {}),
   };
 
+  if (payload.isListed === false) {
+    updateData.status = 'INACTIVE';
+  }
+
   return prisma.product.update({
     where: { id: productId },
     data: updateData,
@@ -318,8 +336,12 @@ export const relistProduct = async (productId: string, userId?: string) => {
     throw new AppError('Product is already active', 409);
   }
 
-  if (product.status !== 'EXCHANGED' && product.status !== 'REMOVED') {
-    throw new AppError('Only exchanged or removed products can be relisted', 409);
+  if (
+    product.status !== 'EXCHANGED' &&
+    product.status !== 'REMOVED' &&
+    product.status !== 'INACTIVE'
+  ) {
+    throw new AppError('Only inactive, exchanged or removed products can be relisted', 409);
   }
 
   return prisma.product.update({
@@ -338,6 +360,17 @@ export const relistProduct = async (productId: string, userId?: string) => {
       owner: { select: { id: true, userName: true, profilePicture: true } },
     },
   });
+};
+
+export const markExpiredInactiveProductsAsRemoved = async () => {
+  const inactiveBefore = new Date(Date.now() - INACTIVE_EXPIRY_MS);
+  const result = await repo.markExpiredInactiveProductsAsRemoved(inactiveBefore);
+
+  return {
+    markedRemovedCount: result.count,
+    inactiveExpiryDays: INACTIVE_EXPIRY_DAYS,
+    inactiveBefore,
+  };
 };
 
 export const deleteProductImage = async (imageId: string, userId: string) => {

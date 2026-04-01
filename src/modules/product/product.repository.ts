@@ -122,6 +122,19 @@ export const markProductAsRemoved = async (id: string) => {
   });
 };
 
+export const markExpiredInactiveProductsAsRemoved = async (inactiveBefore: Date) => {
+  return prisma.product.updateMany({
+    where: {
+      status: 'INACTIVE',
+      updatedAt: { lte: inactiveBefore },
+    },
+    data: {
+      status: 'REMOVED',
+      isListed: false,
+    },
+  });
+};
+
 export const createProductOwnershipHistory = async (productId: string, ownerId: string) => {
   return prisma.productOwnershipHistory.create({
     data: {

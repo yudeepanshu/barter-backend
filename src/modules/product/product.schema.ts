@@ -4,7 +4,10 @@ export const createProductSchema = z.object({
   title: z.string().min(1),
   description: z.string().optional(),
   categoryId: z.string().uuid().optional(),
-  status: z.enum(['ACTIVE', 'RESERVED', 'EXCHANGED', 'REMOVED']).optional().default('ACTIVE'),
+  status: z
+    .enum(['ACTIVE', 'INACTIVE', 'RESERVED', 'EXCHANGED', 'REMOVED'])
+    .optional()
+    .default('ACTIVE'),
   requestByMoney: z.boolean().optional().default(false),
   isFree: z.boolean().optional().default(false),
   currentOwnerId: z.string().uuid().optional(),
@@ -62,7 +65,7 @@ export const productIdParamSchema = z.object({
 });
 
 export const queryProductsSchema = z.object({
-  status: z.enum(['ACTIVE', 'RESERVED', 'EXCHANGED', 'REMOVED']).optional(),
+  status: z.enum(['ACTIVE', 'INACTIVE', 'RESERVED', 'EXCHANGED', 'REMOVED']).optional(),
   categoryId: z.string().uuid().optional(),
   ownerId: z.string().uuid().optional(),
   excludeOwnerId: z.string().uuid().optional(),

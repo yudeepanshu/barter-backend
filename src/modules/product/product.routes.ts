@@ -2,12 +2,18 @@ import { Router } from 'express';
 import * as productController from './product.controller';
 import { asyncHandler } from '../../common/utils/asyncHandler';
 import { protect } from '../../common/middlewares/auth';
+import { adminAuth } from '../../common/middlewares/adminAuth';
 
 const router = Router();
 
 // Public routes
 router.get('/', asyncHandler(productController.getProducts));
 router.get('/:id', asyncHandler(productController.getProduct));
+router.post(
+  '/inactive/cleanup-expired',
+  adminAuth,
+  asyncHandler(productController.markExpiredInactiveProductsAsRemoved),
+);
 
 // Protected routes (require authentication)
 router.post('/', protect, asyncHandler(productController.createProduct));

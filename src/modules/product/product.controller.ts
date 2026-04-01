@@ -62,6 +62,12 @@ export const deleteProductImage = async (req: Request, res: Response) => {
   await productService.deleteProductImage(imageId, userId);
   return sendSuccess(res, null, 'Product image deleted');
 };
+
+export const markExpiredInactiveProductsAsRemoved = async (_req: Request, res: Response) => {
+  const result = await productService.markExpiredInactiveProductsAsRemoved();
+  return sendSuccess(res, result, 'Expired inactive products marked as removed');
+};
+
 export const transferProductOwnership = async (req: Request, res: Response) => {
   const productId = getProductRouteId(req);
   const { newOwnerId } = transferOwnershipSchema.parse(req.body);

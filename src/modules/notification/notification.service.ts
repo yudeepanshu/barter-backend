@@ -8,6 +8,11 @@ import type {
 } from './notification.schema';
 import { sendExpoPushMessages } from './push.service';
 
+const summarizePushTokens = (tokens: string[]) => ({
+  count: tokens.length,
+  sample: tokens.slice(0, 3),
+});
+
 const encodeCursor = (createdAt: Date, id: string) => {
   return Buffer.from(`${createdAt.toISOString()}|${id}`, 'utf8').toString('base64');
 };
@@ -132,7 +137,7 @@ export const dispatchNotificationToUser = async (params: {
   logger.info('Dispatching remote push notification', {
     userId: params.userId,
     type: params.type,
-    tokenCount: tokens.length,
+    tokens: summarizePushTokens(tokens),
   });
 
   const { invalidTokens } = await sendExpoPushMessages(
@@ -149,6 +154,8 @@ export const dispatchNotificationToUser = async (params: {
     logger.info('Deactivated invalid push tokens', {
       count: invalidTokens.length,
       userId: params.userId,
+      type: params.type,
+      tokens: invalidTokens,
     });
   }
 };

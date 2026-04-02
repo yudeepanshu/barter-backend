@@ -122,8 +122,18 @@ export const dispatchNotificationToUser = async (params: {
 
   const tokens = await repo.getActivePushTokensByUserId(params.userId);
   if (tokens.length === 0) {
+    logger.info('Skipping remote push notification because user has no active push tokens', {
+      userId: params.userId,
+      type: params.type,
+    });
     return;
   }
+
+  logger.info('Dispatching remote push notification', {
+    userId: params.userId,
+    type: params.type,
+    tokenCount: tokens.length,
+  });
 
   const { invalidTokens } = await sendExpoPushMessages(
     tokens.map((token) => ({

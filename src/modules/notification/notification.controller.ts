@@ -41,3 +41,9 @@ export const markAllNotificationsRead = async (req: Request, res: Response) => {
   const result = await notificationService.markAllNotificationsRead(userId);
   return sendSuccess(res, result, 'All notifications marked as read');
 };
+
+export const clearAllNotifications = async (req: Request, res: Response) => {
+  const userId = req.user?.id;
+  const result = await notificationService.clearAllNotifications(userId);
+  return sendSuccess(res, result, 'All notifications cleared');
+};

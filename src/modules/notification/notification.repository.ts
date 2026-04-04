@@ -157,3 +157,11 @@ export const countUnreadNotifications = async (userId: string) => {
     },
   });
 };
+
+export const deleteAllNotifications = async (userId: string) => {
+  return db.notification.deleteMany({
+    where: {
+      userId,
+    },
+  });
+};

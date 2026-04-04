@@ -13,6 +13,7 @@ router.post(
   asyncHandler(notificationController.unregisterPushDevice),
 );
 router.post('/read-all', protect, asyncHandler(notificationController.markAllNotificationsRead));
+router.post('/clear-all', protect, asyncHandler(notificationController.clearAllNotifications));
 router.post('/:id/read', protect, asyncHandler(notificationController.markNotificationRead));
 
 export default router;

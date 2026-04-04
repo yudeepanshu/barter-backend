@@ -110,6 +110,15 @@ export const markAllNotificationsRead = async (userId: string | undefined) => {
   return { marked: true, unreadCount: 0 };
 };
 
+export const clearAllNotifications = async (userId: string | undefined) => {
+  if (!userId) {
+    throw new AppError('Unauthorized', 401);
+  }
+
+  await repo.deleteAllNotifications(userId);
+  return { cleared: true };
+};
+
 export const dispatchNotificationToUser = async (params: {
   userId: string;
   type: string;

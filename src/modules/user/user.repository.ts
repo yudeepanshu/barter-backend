@@ -10,6 +10,7 @@ export const findUserById = async (id: string) => {
       email: true,
       mobileNumber: true,
       profilePicture: true,
+      createdAt: true,
     },
   });
 };
@@ -54,6 +55,7 @@ export const updateUserById = async (
       email: true,
       mobileNumber: true,
       profilePicture: true,
+      createdAt: true,
     },
   });
 };

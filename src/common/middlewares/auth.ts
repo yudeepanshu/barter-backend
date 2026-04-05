@@ -19,3 +19,22 @@ export const protect = (req: Request, res: Response, next: NextFunction) => {
     return sendError(res, 'Invalid token', 401);
   }
 };
+
+export const optionalProtect = (req: Request, _res: Response, next: NextFunction) => {
+  const SECRET = config.ACCESS_SECRET;
+  const token = req.headers.authorization?.split(' ')[1];
+
+  if (!token) {
+    next();
+    return;
+  }
+
+  try {
+    const decoded: any = jwt.verify(token, SECRET);
+    req.user = decoded;
+  } catch {
+    req.user = undefined;
+  }
+
+  next();
+};

@@ -122,10 +122,10 @@ const getCacheKey = (query: QueryProductsInput) => {
   return `products:${JSON.stringify(keyObj)}`;
 };
 
-export const getProducts = async (filters: QueryProductsInput) => {
+export const getProducts = async (filters: QueryProductsInput, userId?: string) => {
   const limit = Math.min(filters.limit ?? 20, 100);
 
-  const useCache = !filters.cursor;
+  const useCache = !filters.cursor && !userId;
   const cacheKey = useCache ? getCacheKey(filters) : null;
 
   if (useCache && cacheKey) {
@@ -185,12 +185,24 @@ export const getProducts = async (filters: QueryProductsInput) => {
 
   const actualWhere = cursorCondition.length > 0 ? { AND: [where, ...cursorCondition] } : where;
 
+  const reservationInclude = userId
+    ? {
+        reservations: {
+          where: { status: 'ACTIVE' },
+          select: { buyerId: true },
+          orderBy: { createdAt: 'desc' as const },
+          take: 1,
+        },
+      }
+    : {};
+
   let products = await prisma.product.findMany({
     where: actualWhere,
     include: {
       productImages: true,
       category: true,
       owner: { select: { id: true, userName: true, profilePicture: true } },
+      ...reservationInclude,
     },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: limit + 1,
@@ -220,14 +232,27 @@ export const getProducts = async (filters: QueryProductsInput) => {
   if (hasMore) products = products.slice(0, limit);
 
   const items = products.map((product) => {
+    const activeReservation = userId && 'reservations' in product ? product.reservations[0] : null;
     const inactiveRemovesAt =
       product.status === 'INACTIVE'
         ? new Date(product.updatedAt.getTime() + INACTIVE_EXPIRY_MS)
         : null;
 
+    const reservationContext =
+      product.status === 'RESERVED' && activeReservation
+        ? activeReservation.buyerId === userId
+          ? 'FOR_VIEWER'
+          : 'OTHER_BUYER'
+        : null;
+
+    const { reservations, ...productData } = product as typeof product & {
+      reservations?: Array<{ buyerId: string }>;
+    };
+
     return {
-      ...product,
+      ...productData,
       inactiveRemovesAt,
+      reservationContext,
     };
   });
 

@@ -24,7 +24,8 @@ export const createProduct = async (req: Request, res: Response) => {
 
 export const getProducts = async (req: Request, res: Response) => {
   const query = queryProductsSchema.parse(req.query);
-  const products = await productService.getProducts(query);
+  const userId = req.user?.id;
+  const products = await productService.getProducts(query, userId);
   return sendSuccess(res, products);
 };
 

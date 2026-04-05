@@ -3,6 +3,7 @@ import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 
 type UpdateSource = 'play-store' | 'direct-apk';
 type Platform = 'android' | 'ios';
+type UpdateChannel = 'production' | 'beta' | 'alpha';
 type UpdateType = 'none' | 'normal' | 'force';
 
 type PlatformPolicy = {
@@ -22,10 +23,17 @@ type AppVersionPolicy = {
   ios: PlatformPolicy;
 };
 
-export type UpsertAppVersionPolicyInput = AppVersionPolicy;
+type ChannelPolicyMap = Record<UpdateChannel, AppVersionPolicy>;
+
+export type UpsertAppVersionPolicyInput =
+  | AppVersionPolicy
+  | {
+      channels: Partial<Record<UpdateChannel, AppVersionPolicy>>;
+    };
 
 export type AppVersionPolicyResult = {
   platform: Platform;
+  channel: UpdateChannel;
   currentVersion: string;
   latestVersion: string;
   minimumSupportedVersion: string;
@@ -39,7 +47,7 @@ export type AppVersionPolicyResult = {
   secondaryUpdateUrl?: string;
 };
 
-let cachedRemotePolicy: AppVersionPolicy | null = null;
+let cachedRemotePolicy: ChannelPolicyMap | null = null;
 let cachedRemotePolicyAt = 0;
 
 let s3Client: S3Client | null = null;
@@ -97,7 +105,7 @@ function compareVersions(a: string, b: string) {
   return 0;
 }
 
-function envPolicy(): AppVersionPolicy {
+function envPolicySingle(): AppVersionPolicy {
   return {
     android: {
       latestVersion: sanitizeVersion(config.APP_UPDATE.ANDROID.LATEST_VERSION, '1.0.0'),
@@ -126,67 +134,127 @@ function envPolicy(): AppVersionPolicy {
   };
 }
 
-function parseRemotePolicy(raw: unknown): AppVersionPolicy | null {
+function envPolicyByChannel(): ChannelPolicyMap {
+  const single = envPolicySingle();
+  return {
+    production: single,
+    beta: single,
+    alpha: single,
+  };
+}
+
+function parseRemotePolicy(raw: unknown): ChannelPolicyMap | null {
   if (!raw || typeof raw !== 'object') {
     return null;
   }
 
   const root = raw as Record<string, unknown>;
-  const envFallback = envPolicy();
+  const envFallback = envPolicyByChannel();
 
-  const parsePlatform = (platformKey: 'android' | 'ios'): PlatformPolicy => {
+  const parsePlatform = (
+    sourceRoot: Record<string, unknown>,
+    fallback: AppVersionPolicy,
+    platformKey: 'android' | 'ios',
+  ): PlatformPolicy => {
     const source =
-      root[platformKey] && typeof root[platformKey] === 'object'
-        ? (root[platformKey] as Record<string, unknown>)
+      sourceRoot[platformKey] && typeof sourceRoot[platformKey] === 'object'
+        ? (sourceRoot[platformKey] as Record<string, unknown>)
         : {};
-    const fallback = envFallback[platformKey];
+    const fallbackPlatform = fallback[platformKey];
 
     return {
       latestVersion: sanitizeVersion(
         source.latestVersion as string | undefined,
-        fallback.latestVersion,
+        fallbackPlatform.latestVersion,
       ),
       minimumSupportedVersion: sanitizeVersion(
         source.minimumSupportedVersion as string | undefined,
-        fallback.minimumSupportedVersion,
+        fallbackPlatform.minimumSupportedVersion,
       ),
       forceUpdate:
-        typeof source.forceUpdate === 'boolean' ? source.forceUpdate : fallback.forceUpdate,
+        typeof source.forceUpdate === 'boolean' ? source.forceUpdate : fallbackPlatform.forceUpdate,
       title:
         typeof source.title === 'string' && source.title.trim().length > 0
           ? source.title
-          : fallback.title,
+          : fallbackPlatform.title,
       message:
         typeof source.message === 'string' && source.message.trim().length > 0
           ? source.message
-          : fallback.message,
+          : fallbackPlatform.message,
       playStoreUrl:
         typeof source.playStoreUrl === 'string' && source.playStoreUrl.trim().length > 0
           ? source.playStoreUrl
-          : fallback.playStoreUrl,
+          : fallbackPlatform.playStoreUrl,
       directApkUrl:
         typeof source.directApkUrl === 'string' && source.directApkUrl.trim().length > 0
           ? source.directApkUrl
-          : fallback.directApkUrl,
+          : fallbackPlatform.directApkUrl,
       appStoreUrl:
         typeof source.appStoreUrl === 'string' && source.appStoreUrl.trim().length > 0
           ? source.appStoreUrl
-          : fallback.appStoreUrl,
+          : fallbackPlatform.appStoreUrl,
       preferredSource:
         source.preferredSource === 'play-store' || source.preferredSource === 'direct-apk'
           ? source.preferredSource
-          : fallback.preferredSource,
+          : fallbackPlatform.preferredSource,
     };
   };
 
+  const parsePolicyRoot = (
+    sourceRoot: Record<string, unknown>,
+    fallback: AppVersionPolicy,
+  ): AppVersionPolicy => {
+    return {
+      android: parsePlatform(sourceRoot, fallback, 'android'),
+      ios: parsePlatform(sourceRoot, fallback, 'ios'),
+    };
+  };
+
+  // Legacy format: { android: {...}, ios: {...} }
+  const hasLegacyShape = typeof root.android === 'object' || typeof root.ios === 'object';
+  if (hasLegacyShape) {
+    const legacy = parsePolicyRoot(root, envFallback.production);
+    return {
+      production: legacy,
+      beta: legacy,
+      alpha: legacy,
+    };
+  }
+
+  // New format: { channels: { production: {...}, beta: {...}, alpha: {...} } }
+  const channelsRoot =
+    root.channels && typeof root.channels === 'object'
+      ? (root.channels as Record<string, unknown>)
+      : null;
+
+  if (!channelsRoot) {
+    return null;
+  }
+
+  const production =
+    channelsRoot.production && typeof channelsRoot.production === 'object'
+      ? parsePolicyRoot(channelsRoot.production as Record<string, unknown>, envFallback.production)
+      : envFallback.production;
+
+  const beta =
+    channelsRoot.beta && typeof channelsRoot.beta === 'object'
+      ? parsePolicyRoot(channelsRoot.beta as Record<string, unknown>, production)
+      : production;
+
+  const alpha =
+    channelsRoot.alpha && typeof channelsRoot.alpha === 'object'
+      ? parsePolicyRoot(channelsRoot.alpha as Record<string, unknown>, beta)
+      : beta;
+
   return {
-    android: parsePlatform('android'),
-    ios: parsePlatform('ios'),
+    production,
+    beta,
+    alpha,
   };
 }
 
-function buildPolicyObject(input: UpsertAppVersionPolicyInput): AppVersionPolicy {
-  const envFallback = envPolicy();
+function buildPolicyObject(input: UpsertAppVersionPolicyInput): ChannelPolicyMap {
+  const envFallback = envPolicyByChannel();
 
   const normalizePlatformPolicy = (
     platformInput: PlatformPolicy,
@@ -212,9 +280,38 @@ function buildPolicyObject(input: UpsertAppVersionPolicyInput): AppVersionPolicy
     };
   };
 
+  const normalizePolicy = (
+    policyInput: AppVersionPolicy,
+    fallback: AppVersionPolicy,
+  ): AppVersionPolicy => {
+    return {
+      android: normalizePlatformPolicy(policyInput.android, fallback.android),
+      ios: normalizePlatformPolicy(policyInput.ios, fallback.ios),
+    };
+  };
+
+  if ('channels' in input) {
+    const production = input.channels.production
+      ? normalizePolicy(input.channels.production, envFallback.production)
+      : envFallback.production;
+    const beta = input.channels.beta
+      ? normalizePolicy(input.channels.beta, production)
+      : production;
+    const alpha = input.channels.alpha ? normalizePolicy(input.channels.alpha, beta) : beta;
+
+    return {
+      production,
+      beta,
+      alpha,
+    };
+  }
+
+  const legacy = normalizePolicy(input, envFallback.production);
+
   return {
-    android: normalizePlatformPolicy(input.android, envFallback.android),
-    ios: normalizePlatformPolicy(input.ios, envFallback.ios),
+    production: legacy,
+    beta: legacy,
+    alpha: legacy,
   };
 }
 
@@ -258,7 +355,7 @@ export async function uploadAppVersionPolicyToS3(input: UpsertAppVersionPolicyIn
   };
 }
 
-async function getRemotePolicyIfConfigured(): Promise<AppVersionPolicy | null> {
+async function getRemotePolicyIfConfigured(): Promise<ChannelPolicyMap | null> {
   const policyUrl = config.APP_UPDATE.POLICY_URL.trim();
   if (!policyUrl) {
     return null;
@@ -285,12 +382,12 @@ async function getRemotePolicyIfConfigured(): Promise<AppVersionPolicy | null> {
   return parsed;
 }
 
-async function getEffectivePolicy() {
+async function getEffectivePolicyByChannel() {
   try {
     const remotePolicy = await getRemotePolicyIfConfigured();
-    return remotePolicy ?? envPolicy();
+    return remotePolicy ?? envPolicyByChannel();
   } catch {
-    return envPolicy();
+    return envPolicyByChannel();
   }
 }
 
@@ -328,12 +425,15 @@ function chooseIosUrls(policy: PlatformPolicy) {
 
 export async function getAppVersionPolicy(params: {
   platform: Platform;
+  channel: UpdateChannel;
   currentVersion: string;
 }): Promise<AppVersionPolicyResult> {
   const { platform } = params;
+  const channel = params.channel;
   const currentVersion = sanitizeVersion(params.currentVersion, '0.0.0');
-  const policy = await getEffectivePolicy();
-  const platformPolicy = policy[platform];
+  const policyByChannel = await getEffectivePolicyByChannel();
+  const channelPolicy = policyByChannel[channel] ?? policyByChannel.production;
+  const platformPolicy = channelPolicy[platform];
 
   const latestVersion = sanitizeVersion(platformPolicy.latestVersion, '1.0.0');
   const minimumSupportedVersion = sanitizeVersion(
@@ -352,6 +452,7 @@ export async function getAppVersionPolicy(params: {
 
   return {
     platform,
+    channel,
     currentVersion,
     latestVersion,
     minimumSupportedVersion,

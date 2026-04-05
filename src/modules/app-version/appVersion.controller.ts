@@ -10,6 +10,7 @@ export const getVersionPolicy = async (req: Request, res: Response) => {
   const query = getAppVersionPolicyQuerySchema.parse(req.query);
   const policy = await getAppVersionPolicy({
     platform: query.platform,
+    channel: query.channel,
     currentVersion: query.currentVersion,
   });
 

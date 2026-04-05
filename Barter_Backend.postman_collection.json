@@ -1876,7 +1876,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/app-version/policy?platform=android&currentVersion=1.0.0",
+              "raw": "{{baseUrl}}/api/app-version/policy?platform={{appPlatform}}&channel={{appChannel}}&currentVersion={{currentAppVersion}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1888,17 +1888,22 @@
               "query": [
                 {
                   "key": "platform",
-                  "value": "android",
+                  "value": "{{appPlatform}}",
+                  "disabled": false
+                },
+                {
+                  "key": "channel",
+                  "value": "{{appChannel}}",
                   "disabled": false
                 },
                 {
                   "key": "currentVersion",
-                  "value": "1.0.0",
+                  "value": "{{currentAppVersion}}",
                   "disabled": false
                 }
               ]
             },
-            "description": "Get app version update policy (PUBLIC).\n\nQuery:\n- platform: android|ios\n- currentVersion: current app semantic version"
+            "description": "Get app version update policy (PUBLIC).\n\nQuery:\n- platform: android|ios\n- channel: production|beta|alpha\n- currentVersion: current app semantic version"
           }
         },
         {
@@ -1918,7 +1923,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"android\": {\n    \"latestVersion\": \"1.2.0\",\n    \"minimumSupportedVersion\": \"1.0.0\",\n    \"forceUpdate\": false,\n    \"title\": \"Update available\",\n    \"message\": \"A new Android version is available.\",\n    \"playStoreUrl\": \"https://play.google.com/store/apps/details?id=com.example.app\",\n    \"directApkUrl\": \"https://example.com/app-release.apk\",\n    \"preferredSource\": \"play-store\"\n  },\n  \"ios\": {\n    \"latestVersion\": \"1.2.0\",\n    \"minimumSupportedVersion\": \"1.0.0\",\n    \"forceUpdate\": false,\n    \"title\": \"Update available\",\n    \"message\": \"A new iOS version is available.\",\n    \"appStoreUrl\": \"https://apps.apple.com/app/id1234567890\"\n  }\n}"
+              "raw": "{\n  \"channels\": {\n    \"production\": {\n      \"android\": {\n        \"latestVersion\": \"1.0.0\",\n        \"minimumSupportedVersion\": \"1.0.0\",\n        \"forceUpdate\": false,\n        \"title\": \"Update available\",\n        \"message\": \"A new production Android version is available.\",\n        \"playStoreUrl\": \"https://play.google.com/store/apps/details?id=com.example.app\",\n        \"directApkUrl\": \"https://example.com/app-release.apk\",\n        \"preferredSource\": \"play-store\"\n      },\n      \"ios\": {\n        \"latestVersion\": \"1.0.0\",\n        \"minimumSupportedVersion\": \"1.0.0\",\n        \"forceUpdate\": false,\n        \"title\": \"Update available\",\n        \"message\": \"A new production iOS version is available.\",\n        \"appStoreUrl\": \"https://apps.apple.com/app/id1234567890\"\n      }\n    },\n    \"beta\": {\n      \"android\": {\n        \"latestVersion\": \"1.2.0-beta.2\",\n        \"minimumSupportedVersion\": \"1.2.0-beta.1\",\n        \"forceUpdate\": false,\n        \"title\": \"Beta update available\",\n        \"message\": \"A new beta build is ready.\",\n        \"directApkUrl\": \"https://example.com/beta/app-beta.apk\",\n        \"preferredSource\": \"direct-apk\"\n      },\n      \"ios\": {\n        \"latestVersion\": \"1.2.0-beta.2\",\n        \"minimumSupportedVersion\": \"1.2.0-beta.1\",\n        \"forceUpdate\": false,\n        \"title\": \"Beta update available\",\n        \"message\": \"A new beta build is ready.\",\n        \"appStoreUrl\": \"https://apps.apple.com/app/id1234567890\"\n      }\n    },\n    \"alpha\": {\n      \"android\": {\n        \"latestVersion\": \"1.3.0-alpha.1\",\n        \"minimumSupportedVersion\": \"1.3.0-alpha.1\",\n        \"forceUpdate\": true,\n        \"title\": \"Alpha build required\",\n        \"message\": \"Please update to continue testing alpha builds.\",\n        \"directApkUrl\": \"https://example.com/alpha/app-alpha.apk\",\n        \"preferredSource\": \"direct-apk\"\n      },\n      \"ios\": {\n        \"latestVersion\": \"1.3.0-alpha.1\",\n        \"minimumSupportedVersion\": \"1.3.0-alpha.1\",\n        \"forceUpdate\": true,\n        \"title\": \"Alpha build required\",\n        \"message\": \"Please update to continue testing alpha builds.\",\n        \"appStoreUrl\": \"https://apps.apple.com/app/id1234567890\"\n      }\n    }\n  }\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/app-version/policy/upload",
@@ -1932,7 +1937,7 @@
                 "upload"
               ]
             },
-            "description": "Upload app version policy document (ADMIN ONLY)."
+            "description": "Upload app version policy document (ADMIN ONLY).\n\nSupports channel-aware policy format with channels.production|beta|alpha."
           }
         }
       ]
@@ -2034,6 +2039,24 @@
       "value": "",
       "type": "string",
       "description": "Notification id used to mark a specific notification as read"
+    },
+    {
+      "key": "appPlatform",
+      "value": "android",
+      "type": "string",
+      "description": "App platform for version policy checks: android|ios"
+    },
+    {
+      "key": "appChannel",
+      "value": "beta",
+      "type": "string",
+      "description": "App channel for version policy checks: production|beta|alpha"
+    },
+    {
+      "key": "currentAppVersion",
+      "value": "1.0.0",
+      "type": "string",
+      "description": "Current app semantic version sent to policy endpoint"
     }
   ]
 }

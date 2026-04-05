@@ -43,6 +43,38 @@ export interface EnvConfig {
     S3_SECRET_ACCESS_KEY: string;
     S3_PRESIGNED_URL_EXPIRES_IN_SECONDS: number;
   };
+  APP_UPDATE: {
+    POLICY_URL: string;
+    POLICY_CACHE_TTL_SECONDS: number;
+    POLICY_S3_BUCKET: string;
+    POLICY_S3_KEY: string;
+    ANDROID: {
+      LATEST_VERSION: string;
+      MIN_SUPPORTED_VERSION: string;
+      FORCE_UPDATE: boolean;
+      TITLE: string;
+      MESSAGE: string;
+      PLAY_STORE_URL: string;
+      DIRECT_APK_URL: string;
+      PREFERRED_SOURCE: 'play-store' | 'direct-apk';
+    };
+    IOS: {
+      LATEST_VERSION: string;
+      MIN_SUPPORTED_VERSION: string;
+      FORCE_UPDATE: boolean;
+      TITLE: string;
+      MESSAGE: string;
+      APP_STORE_URL: string;
+    };
+  };
+}
+
+function parseBoolean(value: string | undefined, fallback = false) {
+  if (!value) {
+    return fallback;
+  }
+
+  return ['1', 'true', 'yes', 'on'].includes(value.trim().toLowerCase());
 }
 
 export const config: EnvConfig = {
@@ -90,5 +122,36 @@ export const config: EnvConfig = {
     S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY || '',
     S3_PRESIGNED_URL_EXPIRES_IN_SECONDS:
       Number(process.env.S3_PRESIGNED_URL_EXPIRES_IN_SECONDS) || 3600,
+  },
+  APP_UPDATE: {
+    POLICY_URL: process.env.APP_UPDATE_POLICY_URL || '',
+    POLICY_CACHE_TTL_SECONDS: Number(process.env.APP_UPDATE_POLICY_CACHE_TTL_SECONDS) || 300,
+    POLICY_S3_BUCKET: process.env.APP_UPDATE_POLICY_S3_BUCKET || process.env.S3_BUCKET_NAME || '',
+    POLICY_S3_KEY: process.env.APP_UPDATE_POLICY_S3_KEY || 'app-updates/version-policy.json',
+    ANDROID: {
+      LATEST_VERSION: process.env.APP_UPDATE_ANDROID_LATEST_VERSION || '1.0.0',
+      MIN_SUPPORTED_VERSION: process.env.APP_UPDATE_ANDROID_MIN_SUPPORTED_VERSION || '1.0.0',
+      FORCE_UPDATE: parseBoolean(process.env.APP_UPDATE_ANDROID_FORCE_UPDATE, false),
+      TITLE: process.env.APP_UPDATE_ANDROID_TITLE || 'Update available',
+      MESSAGE:
+        process.env.APP_UPDATE_ANDROID_MESSAGE ||
+        'A newer version of XACT is ready with improvements and fixes.',
+      PLAY_STORE_URL: process.env.APP_UPDATE_ANDROID_PLAY_STORE_URL || '',
+      DIRECT_APK_URL: process.env.APP_UPDATE_ANDROID_DIRECT_APK_URL || '',
+      PREFERRED_SOURCE:
+        process.env.APP_UPDATE_ANDROID_PREFERRED_SOURCE === 'play-store'
+          ? 'play-store'
+          : 'direct-apk',
+    },
+    IOS: {
+      LATEST_VERSION: process.env.APP_UPDATE_IOS_LATEST_VERSION || '1.0.0',
+      MIN_SUPPORTED_VERSION: process.env.APP_UPDATE_IOS_MIN_SUPPORTED_VERSION || '1.0.0',
+      FORCE_UPDATE: parseBoolean(process.env.APP_UPDATE_IOS_FORCE_UPDATE, false),
+      TITLE: process.env.APP_UPDATE_IOS_TITLE || 'Update available',
+      MESSAGE:
+        process.env.APP_UPDATE_IOS_MESSAGE ||
+        'A newer version of XACT is ready with improvements and fixes.',
+      APP_STORE_URL: process.env.APP_UPDATE_IOS_APP_STORE_URL || '',
+    },
   },
 };

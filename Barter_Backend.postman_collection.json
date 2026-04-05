@@ -112,6 +112,34 @@
             },
             "description": "Verify OTP code and get authentication tokens\n\nRequired:\n- identifier: Email or 10-digit phone\n- code: 6-digit OTP\n\nSave the accessToken to the postman variable {{accessToken}} for authenticated requests"
           }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/refresh-token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "refresh-token"
+              ]
+            },
+            "description": "Refresh access/refresh token pair using valid refresh token.\n\nBody:\n- refreshToken: string"
+          }
         }
       ]
     },
@@ -119,7 +147,7 @@
       "name": "Users",
       "item": [
         {
-          "name": "Get User Profile",
+          "name": "Get My Profile",
           "event": [
             {
               "listen": "test",
@@ -136,7 +164,7 @@
                   "const data = json?.data?.user ?? json?.data ?? null;",
                   "const userId = data?.id;",
                   "const email = data?.email;",
-                  "const phone = data?.phone;",
+                  "const phone = data?.mobileNumber ?? data?.phone;",
                   "",
                   "if (userId) pm.environment.set('currentUserId', String(userId));",
                   "if (email) pm.environment.set('currentUserEmail', String(email));",
@@ -160,17 +188,112 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/users/profile",
+              "raw": "{{baseUrl}}/api/users/me",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "users",
-                "profile"
+                "me"
               ]
             },
-            "description": "Get authenticated user profile (requires valid access token)"
+            "description": "Get authenticated user profile (requires valid access token)."
+          }
+        },
+        {
+          "name": "Update My Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userName\": \"Updated User\",\n  \"mobileNumber\": \"9876543210\",\n  \"email\": \"updated@example.com\",\n  \"profilePicture\": \"https://example.com/avatar.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "me"
+              ]
+            },
+            "description": "Update authenticated user profile (PROTECTED).\n\nAt least one field is required:\n- userName\n- mobileNumber (set null to clear)\n- email (set null to clear)\n- profilePicture (set null to clear)"
+          }
+        },
+        {
+          "name": "Generate Profile Picture Pre-signed URL",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fileName\": \"avatar.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/me/profile-picture/presigned",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "me",
+                "profile-picture",
+                "presigned"
+              ]
+            },
+            "description": "Generate pre-signed upload URL for profile picture (PROTECTED).\n\nBody:\n- fileName: string"
+          }
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userName\": \"john_doe\",\n  \"mobileNumber\": \"9876543210\",\n  \"email\": \"john@example.com\",\n  \"profilePicture\": \"https://example.com/avatar.jpg\",\n  \"allowPhone\": true,\n  \"allowEmail\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            },
+            "description": "Create a user profile.\n\nRequired:\n- userName (min 3 chars)\n\nOptional:\n- mobileNumber\n- email\n- profilePicture\n- allowPhone (default false)\n- allowEmail (default false)"
           }
         }
       ]
@@ -384,10 +507,15 @@
                   "key": "radiusKm",
                   "value": "",
                   "disabled": true
+                },
+                {
+                  "key": "excludeOwnerId",
+                  "value": "",
+                  "disabled": true
                 }
               ]
             },
-            "description": "Get all products with optional filters (PUBLIC)\n\nQuery Parameters (all optional):\n- status: ACTIVE | RESERVED | EXCHANGED | REMOVED\n- categoryId: UUID\n- ownerId: UUID\n- search: Search term for title or description\n- limit: integer (1..100, default 20)\n- cursor: string (base64 token for next page)\n- locationLat, locationLng, radiusKm: for local filtering\n\nResponse format:\n{\n  items: [product],\n  nextCursor: string|null,\n  hasMore: boolean\n}"
+            "description": "Get all products with optional filters (PUBLIC)\n\nQuery Parameters (all optional):\n- status: ACTIVE | INACTIVE | RESERVED | EXCHANGED | REMOVED\n- categoryId: UUID\n- ownerId: UUID\n- excludeOwnerId: UUID (exclude owner's products)\n- search: Search term for title or description\n- limit: integer (1..100, default 20)\n- cursor: string (base64 token for next page)\n- locationLat, locationLng, radiusKm: for local filtering\n\nResponse format:\n{\n  items: [product],\n  nextCursor: string|null,\n  hasMore: boolean\n}"
           }
         },
         {
@@ -773,6 +901,32 @@
             },
             "description": "Delete a specific image from a product (PROTECTED)\n\nPath Parameters:\n- productId: UUID of the product\n- imageId: UUID of the image to delete\n\nNote: Only product owner can delete images from their products"
           }
+        },
+        {
+          "name": "Cleanup Expired Inactive Products",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Admin-Key",
+                "value": "{{adminKey}}",
+                "description": "Admin API key"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/inactive/cleanup-expired",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "inactive",
+                "cleanup-expired"
+              ]
+            },
+            "description": "Mark expired inactive products as REMOVED (ADMIN ONLY).\n\nRequires:\n- X-Admin-Key header"
+          }
         }
       ]
     },
@@ -826,10 +980,16 @@
                   "value": "",
                   "disabled": true,
                   "description": "Optional: Search term for title/description"
+                },
+                {
+                  "key": "excludeOwnerId",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Optional: Exclude products by owner UUID"
                 }
               ]
             },
-            "description": "Get global product discovery feed with cursor-based pagination (PUBLIC)\n\n**Usage Pattern:**\n1. Make initial request without cursor\n2. Receive response with { items, nextCursor, hasMore }\n3. Display items to user (infinite scroll)\n4. When user scrolls near bottom, use nextCursor for next page\n5. Repeat until hasMore = false\n\n**Query Parameters:**\n- status: ACTIVE (default) | RESERVED | EXCHANGED | REMOVED\n- limit: 1-100 (default: 20)\n- cursor: For pagination, base64 encoded token\n- categoryId: (optional) Filter by category UUID\n- search: (optional) Text search\n\n**Cursor Format:**\nThe cursor is a base64-encoded token containing:\n- createdAt: Product creation timestamp\n- id: Product UUID\n\nDo NOT decode or modify the cursor - use it as-is from nextCursor.\n\n**Response Format:**\n```json\n{\n  \"items\": [{\n    \"id\": \"uuid\",\n    \"title\": \"Product Title\",\n    \"description\": \"...\",\n    \"status\": \"ACTIVE\",\n    \"categoryId\": \"uuid\",\n    \"currentOwnerId\": \"uuid\",\n    \"latitude\": 40.7128,\n    \"longitude\": -74.0060,\n    \"locationName\": \"New York, NY\",\n    \"isPreOwned\": true,\n    \"createdAt\": \"2026-03-25T10:30:00Z\",\n    \"images\": [{ \"url\": \"https://...\", \"isPrimary\": true }]\n  }],\n  \"nextCursor\": \"eyJjcmVhdGVkQXQiOiIyMDI2LTAzLTI1VDEwOjMwOjAwWiIsImlkIjoiNjYwZTg0MDAifQ==\",\n  \"hasMore\": true\n}\n```\n\n**Performance Notes:**\n- First page (no cursor) is cached for 30 seconds\n- Uses database indexes on status, createdAt, id\n- Cursor ensures consistent ordering across pages\n- No limit offset issues (common with large offsets)"
+            "description": "Get global product discovery feed with cursor-based pagination (PUBLIC)\n\n**Usage Pattern:**\n1. Make initial request without cursor\n2. Receive response with { items, nextCursor, hasMore }\n3. Display items to user (infinite scroll)\n4. When user scrolls near bottom, use nextCursor for next page\n5. Repeat until hasMore = false\n\n**Query Parameters:**\n- status: ACTIVE (default) | INACTIVE | RESERVED | EXCHANGED | REMOVED\n- limit: 1-100 (default: 20)\n- cursor: For pagination, base64 encoded token\n- categoryId: (optional) Filter by category UUID\n- search: (optional) Text search\n- excludeOwnerId: (optional) Exclude owner UUID\n\n**Cursor Format:**\nThe cursor is a base64-encoded token containing:\n- createdAt: Product creation timestamp\n- id: Product UUID\n\nDo NOT decode or modify the cursor - use it as-is from nextCursor.\n\n**Response Format:**\n```json\n{\n  \"items\": [{\n    \"id\": \"uuid\",\n    \"title\": \"Product Title\",\n    \"description\": \"...\",\n    \"status\": \"ACTIVE\",\n    \"categoryId\": \"uuid\",\n    \"currentOwnerId\": \"uuid\",\n    \"latitude\": 40.7128,\n    \"longitude\": -74.0060,\n    \"locationName\": \"New York, NY\",\n    \"isPreOwned\": true,\n    \"createdAt\": \"2026-03-25T10:30:00Z\",\n    \"images\": [{ \"url\": \"https://...\", \"isPrimary\": true }]\n  }],\n  \"nextCursor\": \"eyJjcmVhdGVkQXQiOiIyMDI2LTAzLTI1VDEwOjMwOjAwWiIsImlkIjoiNjYwZTg0MDAifQ==\",\n  \"hasMore\": true\n}\n```\n\n**Performance Notes:**\n- First page (no cursor) is cached for 30 seconds\n- Uses database indexes on status, createdAt, id\n- Cursor ensures consistent ordering across pages\n- No limit offset issues (common with large offsets)"
           }
         },
         {
@@ -897,10 +1057,16 @@
                   "value": "",
                   "disabled": true,
                   "description": "Optional: Search term"
+                },
+                {
+                  "key": "excludeOwnerId",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Optional: Exclude products by owner UUID"
                 }
               ]
             },
-            "description": "Get location-aware product discovery feed (\"near me\" mode) (PUBLIC)\n\n**Usage Pattern:**\n1. Get user's current GPS coordinates (latitude, longitude)\n2. Make request with locationLat, locationLng, radiusKm\n3. Products within radius are returned, sorted by distance (nearest first)\n4. Use cursor for pagination as with global feed\n5. Items maintain distance ranking across pages\n\n**Query Parameters:**\n- status: ACTIVE (default) | RESERVED | EXCHANGED | REMOVED\n- limit: 1-100 (default: 20)\n- locationLat: User's latitude (REQUIRED for location mode)\n- locationLng: User's longitude (REQUIRED for location mode)\n- radiusKm: Search radius in km (default: 25, recommended: 5-50)\n- cursor: For pagination in location results\n- categoryId, search: Optional filters\n\n**Location Algorithm:**\n1. Bounding box filter: Finds products in rough lat/lng range (fast DB lookup)\n2. Haversine distance calculation: Precise distance from user to each product\n3. Sort: By distance ASC, then by createdAt DESC (newest items at same distance first)\n4. Pagination: Cursor prevents duplicate results across pages\n\n**Response Format:**\n```json\n{\n  \"items\": [{\n    \"id\": \"uuid\",\n    \"title\": \"Vintage Camera\",\n    \"description\": \"...\",\n    \"status\": \"ACTIVE\",\n    \"categoryId\": \"uuid\",\n    \"currentOwnerId\": \"uuid\",\n    \"latitude\": 40.7150,\n    \"longitude\": -74.0055,\n    \"locationName\": \"Manhattan, New York\",\n    \"distance_km\": 0.35,\n    \"isPreOwned\": true,\n    \"createdAt\": \"2026-03-25T10:30:00Z\",\n    \"images\": [{ \"url\": \"https://...\", \"isPrimary\": true }]\n  }],\n  \"nextCursor\": \"eyJjcmVhdGVkQXQiOiIyMDI2LTAzLTI1VDEwOjMwOjAwWiIsImlkIjoiNjYwZTg0MDAifQ==\",\n  \"hasMore\": true\n}\n```\n\n**Distance Calculation:**\n- Uses Haversine formula for great-circle distance\n- Accurate for typical barter scenarios (local region)\n- Returns approximate distance in response items\n\n**Example Coordinates:**\n- New York, NY: 40.7128, -74.0060\n- San Francisco, CA: 37.7749, -122.4194\n- Austin, TX: 30.2672, -97.7431\n- Seattle, WA: 47.6062, -122.3321\n\n**Performance Notes:**\n- Database index on latitude, longitude for fast bounding box\n- Haversine calculation done in-memory (efficient)\n- Results sorted by distance for UX\n- Cache NOT used (location queries are user-specific)"
+            "description": "Get location-aware product discovery feed (\"near me\" mode) (PUBLIC)\n\n**Usage Pattern:**\n1. Get user's current GPS coordinates (latitude, longitude)\n2. Make request with locationLat, locationLng, radiusKm\n3. Products within radius are returned, sorted by distance (nearest first)\n4. Use cursor for pagination as with global feed\n5. Items maintain distance ranking across pages\n\n**Query Parameters:**\n- status: ACTIVE (default) | INACTIVE | RESERVED | EXCHANGED | REMOVED\n- limit: 1-100 (default: 20)\n- locationLat: User's latitude (REQUIRED for location mode)\n- locationLng: User's longitude (REQUIRED for location mode)\n- radiusKm: Search radius in km (default: 25, recommended: 5-50)\n- cursor: For pagination in location results\n- excludeOwnerId: Optional owner UUID to exclude\n- categoryId, search: Optional filters\n\n**Location Algorithm:**\n1. Bounding box filter: Finds products in rough lat/lng range (fast DB lookup)\n2. Haversine distance calculation: Precise distance from user to each product\n3. Sort: By distance ASC, then by createdAt DESC (newest items at same distance first)\n4. Pagination: Cursor prevents duplicate results across pages\n\n**Response Format:**\n```json\n{\n  \"items\": [{\n    \"id\": \"uuid\",\n    \"title\": \"Vintage Camera\",\n    \"description\": \"...\",\n    \"status\": \"ACTIVE\",\n    \"categoryId\": \"uuid\",\n    \"currentOwnerId\": \"uuid\",\n    \"latitude\": 40.7150,\n    \"longitude\": -74.0055,\n    \"locationName\": \"Manhattan, New York\",\n    \"distance_km\": 0.35,\n    \"isPreOwned\": true,\n    \"createdAt\": \"2026-03-25T10:30:00Z\",\n    \"images\": [{ \"url\": \"https://...\", \"isPrimary\": true }]\n  }],\n  \"nextCursor\": \"eyJjcmVhdGVkQXQiOiIyMDI2LTAzLTI1VDEwOjMwOjAwWiIsImlkIjoiNjYwZTg0MDAifQ==\",\n  \"hasMore\": true\n}\n```\n\n**Distance Calculation:**\n- Uses Haversine formula for great-circle distance\n- Accurate for typical barter scenarios (local region)\n- Returns approximate distance in response items\n\n**Example Coordinates:**\n- New York, NY: 40.7128, -74.0060\n- San Francisco, CA: 37.7749, -122.4194\n- Austin, TX: 30.2672, -97.7431\n- Seattle, WA: 47.6062, -122.3321\n\n**Performance Notes:**\n- Database index on latitude, longitude for fast bounding box\n- Haversine calculation done in-memory (efficient)\n- Results sorted by distance for UX\n- Cache NOT used (location queries are user-specific)"
           }
         },
         {
@@ -1280,6 +1446,102 @@
             },
             "description": "Get single request details with offers, offered products, and visible products (PROTECTED).\n\nAccess: only buyer or seller on that request."
           }
+        },
+        {
+          "name": "Request Contact Reveal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json;",
+                  "try {",
+                  "  json = pm.response.json();",
+                  "} catch (e) {",
+                  "  json = null;",
+                  "}",
+                  "",
+                  "const revealId = json?.data?.revealRequest?.id ?? json?.data?.id ?? null;",
+                  "if (revealId) {",
+                  "  pm.environment.set('currentRevealRequestId', String(revealId));",
+                  "  pm.collectionVariables.set('currentRevealRequestId', String(revealId));",
+                  "}",
+                  "",
+                  "pm.test('Contact reveal request parsed (non-blocking)', () => {",
+                  "  pm.expect(true).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Can you share contact once accepted?\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/requests/{{currentRequestId}}/contact-reveal",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "requests",
+                "{{currentRequestId}}",
+                "contact-reveal"
+              ]
+            },
+            "description": "Request counterparty contact reveal (PROTECTED).\n\nAllowed only for accepted reserved requests.\nBody:\n- note: optional string (max 500)"
+          }
+        },
+        {
+          "name": "Respond Contact Reveal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"approve\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/requests/{{currentRequestId}}/contact-reveal/{{currentRevealRequestId}}/respond",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "requests",
+                "{{currentRequestId}}",
+                "contact-reveal",
+                "{{currentRevealRequestId}}",
+                "respond"
+              ]
+            },
+            "description": "Approve or reject a specific contact reveal request (PROTECTED).\n\nBody:\n- approve: boolean"
+          }
         }
       ]
     },
@@ -1410,6 +1672,270 @@
           }
         }
       ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Get Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications?limit=20&unreadOnly=false",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "disabled": false
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "unreadOnly",
+                  "value": "false",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "List notifications for the authenticated user with cursor pagination (PROTECTED)."
+          }
+        },
+        {
+          "name": "Register Push Device",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expoPushToken\": \"ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]\",\n  \"platform\": \"android\",\n  \"deviceId\": \"device-123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/devices",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "notifications",
+                "devices"
+              ]
+            },
+            "description": "Register an Expo push token for authenticated user (PROTECTED)."
+          }
+        },
+        {
+          "name": "Unregister Push Device",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expoPushToken\": \"ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/devices/unregister",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "notifications",
+                "devices",
+                "unregister"
+              ]
+            },
+            "description": "Unregister Expo push token for authenticated user (PROTECTED)."
+          }
+        },
+        {
+          "name": "Mark Notification Read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/{{currentNotificationId}}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "notifications",
+                "{{currentNotificationId}}",
+                "read"
+              ]
+            },
+            "description": "Mark a notification as read (PROTECTED)."
+          }
+        },
+        {
+          "name": "Mark All Notifications Read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/read-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "notifications",
+                "read-all"
+              ]
+            },
+            "description": "Mark all notifications as read (PROTECTED)."
+          }
+        },
+        {
+          "name": "Clear All Notifications",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "JWT Access Token from auth/verify-otp"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/clear-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "notifications",
+                "clear-all"
+              ]
+            },
+            "description": "Delete all notifications for authenticated user (PROTECTED)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "App Version",
+      "item": [
+        {
+          "name": "Get Version Policy",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/app-version/policy?platform=android&currentVersion=1.0.0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "app-version",
+                "policy"
+              ],
+              "query": [
+                {
+                  "key": "platform",
+                  "value": "android",
+                  "disabled": false
+                },
+                {
+                  "key": "currentVersion",
+                  "value": "1.0.0",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Get app version update policy (PUBLIC).\n\nQuery:\n- platform: android|ios\n- currentVersion: current app semantic version"
+          }
+        },
+        {
+          "name": "Upload Version Policy",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Admin-Key",
+                "value": "{{adminKey}}",
+                "description": "Admin API key"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"android\": {\n    \"latestVersion\": \"1.2.0\",\n    \"minimumSupportedVersion\": \"1.0.0\",\n    \"forceUpdate\": false,\n    \"title\": \"Update available\",\n    \"message\": \"A new Android version is available.\",\n    \"playStoreUrl\": \"https://play.google.com/store/apps/details?id=com.example.app\",\n    \"directApkUrl\": \"https://example.com/app-release.apk\",\n    \"preferredSource\": \"play-store\"\n  },\n  \"ios\": {\n    \"latestVersion\": \"1.2.0\",\n    \"minimumSupportedVersion\": \"1.0.0\",\n    \"forceUpdate\": false,\n    \"title\": \"Update available\",\n    \"message\": \"A new iOS version is available.\",\n    \"appStoreUrl\": \"https://apps.apple.com/app/id1234567890\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/app-version/policy/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "app-version",
+                "policy",
+                "upload"
+              ]
+            },
+            "description": "Upload app version policy document (ADMIN ONLY)."
+          }
+        }
+      ]
     }
   ],
   "variable": [
@@ -1490,6 +2016,24 @@
       "value": "",
       "type": "string",
       "description": "Warning message from Accept Request when override threshold is near"
+    },
+    {
+      "key": "adminKey",
+      "value": "admin123",
+      "type": "string",
+      "description": "Admin API key used by admin-protected endpoints"
+    },
+    {
+      "key": "currentRevealRequestId",
+      "value": "",
+      "type": "string",
+      "description": "Reveal request id for contact reveal respond endpoint"
+    },
+    {
+      "key": "currentNotificationId",
+      "value": "",
+      "type": "string",
+      "description": "Notification id used to mark a specific notification as read"
     }
   ]
 }

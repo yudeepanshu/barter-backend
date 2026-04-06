@@ -416,6 +416,7 @@ export async function uploadAppVersionPolicyToS3(input: UpsertAppVersionPolicyIn
       Key: key,
       Body: JSON.stringify(policy, null, 2),
       ContentType: 'application/json',
+      ACL: 'public-read',
     }),
   );
 

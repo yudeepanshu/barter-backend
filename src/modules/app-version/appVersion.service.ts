@@ -73,32 +73,112 @@ function sanitizeVersion(value: string | undefined, fallback: string) {
   return normalized.length > 0 ? normalized : fallback;
 }
 
-function parseVersion(input: string) {
-  const cleaned = input.trim();
-  if (!cleaned) {
-    return [0];
+type ParsedSemver = {
+  major: number;
+  minor: number;
+  patch: number;
+  prerelease: string[];
+};
+
+function parseSemver(input: string): ParsedSemver {
+  const cleaned = input.trim().replace(/^v/i, '').split('+')[0] ?? '';
+  const match = cleaned.match(/^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:-([0-9A-Za-z.-]+))?$/);
+
+  if (!match) {
+    return {
+      major: 0,
+      minor: 0,
+      patch: 0,
+      prerelease: [],
+    };
   }
 
-  return cleaned.split('.').map((part) => {
-    const digitsOnly = part.match(/^\d+/)?.[0] ?? '0';
-    const parsed = Number.parseInt(digitsOnly, 10);
-    return Number.isFinite(parsed) ? parsed : 0;
-  });
+  const major = Number.parseInt(match[1] ?? '0', 10) || 0;
+  const minor = Number.parseInt(match[2] ?? '0', 10) || 0;
+  const patch = Number.parseInt(match[3] ?? '0', 10) || 0;
+  const prereleaseRaw = (match[4] ?? '').trim();
+
+  return {
+    major,
+    minor,
+    patch,
+    prerelease:
+      prereleaseRaw.length > 0 ? prereleaseRaw.split(/[.-]/).filter((part) => part.length > 0) : [],
+  };
+}
+
+function comparePrereleaseIdentifier(left: string, right: string) {
+  const leftIsNumeric = /^\d+$/.test(left);
+  const rightIsNumeric = /^\d+$/.test(right);
+
+  if (leftIsNumeric && rightIsNumeric) {
+    const leftNum = Number.parseInt(left, 10);
+    const rightNum = Number.parseInt(right, 10);
+    return leftNum === rightNum ? 0 : leftNum < rightNum ? -1 : 1;
+  }
+
+  if (leftIsNumeric && !rightIsNumeric) {
+    return -1;
+  }
+
+  if (!leftIsNumeric && rightIsNumeric) {
+    return 1;
+  }
+
+  return left === right ? 0 : left < right ? -1 : 1;
 }
 
 function compareVersions(a: string, b: string) {
-  const aParts = parseVersion(a);
-  const bParts = parseVersion(b);
-  const maxLength = Math.max(aParts.length, bParts.length);
+  const left = parseSemver(a);
+  const right = parseSemver(b);
 
+  if (left.major !== right.major) {
+    return left.major < right.major ? -1 : 1;
+  }
+
+  if (left.minor !== right.minor) {
+    return left.minor < right.minor ? -1 : 1;
+  }
+
+  if (left.patch !== right.patch) {
+    return left.patch < right.patch ? -1 : 1;
+  }
+
+  const leftHasPrerelease = left.prerelease.length > 0;
+  const rightHasPrerelease = right.prerelease.length > 0;
+
+  if (!leftHasPrerelease && !rightHasPrerelease) {
+    return 0;
+  }
+
+  if (!leftHasPrerelease && rightHasPrerelease) {
+    return 1;
+  }
+
+  if (leftHasPrerelease && !rightHasPrerelease) {
+    return -1;
+  }
+
+  const maxLength = Math.max(left.prerelease.length, right.prerelease.length);
   for (let index = 0; index < maxLength; index += 1) {
-    const left = aParts[index] ?? 0;
-    const right = bParts[index] ?? 0;
-    if (left < right) {
+    const leftPart = left.prerelease[index];
+    const rightPart = right.prerelease[index];
+
+    if (leftPart === undefined && rightPart !== undefined) {
       return -1;
     }
-    if (left > right) {
+
+    if (leftPart !== undefined && rightPart === undefined) {
       return 1;
+    }
+
+    if (leftPart === undefined || rightPart === undefined) {
+      continue;
+    }
+
+    const compared = comparePrereleaseIdentifier(leftPart, rightPart);
+    if (compared !== 0) {
+      return compared;
     }
   }
 

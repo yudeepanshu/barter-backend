@@ -290,6 +290,32 @@ function parseRemotePolicy(raw: unknown): ChannelPolicyMap | null {
     };
   };
 
+  const parseChannelsRoot = (channelsRoot: Record<string, unknown>): ChannelPolicyMap => {
+    const production =
+      channelsRoot.production && typeof channelsRoot.production === 'object'
+        ? parsePolicyRoot(
+            channelsRoot.production as Record<string, unknown>,
+            envFallback.production,
+          )
+        : envFallback.production;
+
+    const beta =
+      channelsRoot.beta && typeof channelsRoot.beta === 'object'
+        ? parsePolicyRoot(channelsRoot.beta as Record<string, unknown>, production)
+        : production;
+
+    const alpha =
+      channelsRoot.alpha && typeof channelsRoot.alpha === 'object'
+        ? parsePolicyRoot(channelsRoot.alpha as Record<string, unknown>, beta)
+        : beta;
+
+    return {
+      production,
+      beta,
+      alpha,
+    };
+  };
+
   // Legacy format: { android: {...}, ios: {...} }
   const hasLegacyShape = typeof root.android === 'object' || typeof root.ios === 'object';
   if (hasLegacyShape) {
@@ -299,6 +325,16 @@ function parseRemotePolicy(raw: unknown): ChannelPolicyMap | null {
       beta: legacy,
       alpha: legacy,
     };
+  }
+
+  // Normalized format: { production: {...}, beta: {...}, alpha: {...} }
+  const hasDirectChannelsShape =
+    typeof root.production === 'object' ||
+    typeof root.beta === 'object' ||
+    typeof root.alpha === 'object';
+
+  if (hasDirectChannelsShape) {
+    return parseChannelsRoot(root);
   }
 
   // New format: { channels: { production: {...}, beta: {...}, alpha: {...} } }
@@ -311,26 +347,7 @@ function parseRemotePolicy(raw: unknown): ChannelPolicyMap | null {
     return null;
   }
 
-  const production =
-    channelsRoot.production && typeof channelsRoot.production === 'object'
-      ? parsePolicyRoot(channelsRoot.production as Record<string, unknown>, envFallback.production)
-      : envFallback.production;
-
-  const beta =
-    channelsRoot.beta && typeof channelsRoot.beta === 'object'
-      ? parsePolicyRoot(channelsRoot.beta as Record<string, unknown>, production)
-      : production;
-
-  const alpha =
-    channelsRoot.alpha && typeof channelsRoot.alpha === 'object'
-      ? parsePolicyRoot(channelsRoot.alpha as Record<string, unknown>, beta)
-      : beta;
-
-  return {
-    production,
-    beta,
-    alpha,
-  };
+  return parseChannelsRoot(channelsRoot);
 }
 
 function buildPolicyObject(input: UpsertAppVersionPolicyInput): ChannelPolicyMap {

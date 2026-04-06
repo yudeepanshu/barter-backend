@@ -52,7 +52,7 @@ model Product {
   categoryId       String?
   status           String   @default("ACTIVE")
   requestByMoney   Boolean  @default(false)
-  minMoneyAmount   Decimal? @db.Decimal(12, 2) // Minimum amount in rupees when requestByMoney is true
+  minMoneyAmount   Decimal  @default(0) @db.Decimal(12, 2) // Minimum amount in rupees when requestByMoney is true
   isFree           Boolean  @default(false)
   currentOwnerId   String
   productImages    ProductImage[]

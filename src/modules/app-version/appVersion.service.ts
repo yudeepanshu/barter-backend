@@ -525,7 +525,11 @@ export async function getAppVersionPolicy(params: {
   const belowLatest = compareVersions(currentVersion, latestVersion) < 0;
 
   const updateType: UpdateType =
-    belowMinimum || platformPolicy.forceUpdate ? 'force' : belowLatest ? 'normal' : 'none';
+    belowMinimum || (platformPolicy.forceUpdate && belowLatest)
+      ? 'force'
+      : belowLatest
+        ? 'normal'
+        : 'none';
 
   const urlChoice =
     platform === 'android' ? chooseAndroidUrls(platformPolicy) : chooseIosUrls(platformPolicy);

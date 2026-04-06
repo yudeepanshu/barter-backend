@@ -486,7 +486,11 @@ export const createCounterOffer = async (data: CounterOfferRecordInput) => {
   });
 };
 
-export const listOffersForRequest = async (requestId: string, userId: string) => {
+export const listOffersForRequest = async (
+  requestId: string,
+  userId: string,
+  order: 'asc' | 'desc' = 'desc',
+) => {
   const request = await db.request.findFirst({
     where: {
       id: requestId,
@@ -513,7 +517,7 @@ export const listOffersForRequest = async (requestId: string, userId: string) =>
         },
       },
     },
-    orderBy: { createdAt: 'asc' },
+    orderBy: { createdAt: order },
   });
 
   return {

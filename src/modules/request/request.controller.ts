@@ -5,6 +5,7 @@ import {
   cancelRequestSchema,
   createCounterOfferSchema,
   createRequestSchema,
+  listRequestOffersQuerySchema,
   listRequestsQuerySchema,
   requestContactRevealSchema,
   respondContactRevealSchema,
@@ -28,8 +29,9 @@ export const getRequestById = async (req: Request, res: Response) => {
 
 export const getRequestOffers = async (req: Request, res: Response) => {
   const { id: requestId } = requestIdParamSchema.parse(req.params);
+  const query = listRequestOffersQuerySchema.parse(req.query);
   const userId = req.user?.id;
-  const offers = await requestService.getRequestOffers(requestId, userId);
+  const offers = await requestService.getRequestOffers(requestId, query, userId);
   return sendSuccess(res, offers);
 };
 

@@ -12,6 +12,7 @@ export const requestStatusSchema = z.enum([
 export const offerTypeSchema = z.enum(['PRODUCT', 'MONEY', 'MIXED', 'NONE']);
 export const contactPreferenceSchema = z.enum(['PHONE', 'EMAIL', 'BOTH']);
 export const requestTurnSchema = z.enum(['BUYER', 'SELLER']);
+export const requestOffersOrderSchema = z.enum(['asc', 'desc']);
 
 const uuidArraySchema = z
   .array(z.string().uuid())
@@ -48,6 +49,10 @@ export const requestIdParamSchema = z.object({
   id: z.string().uuid(),
 });
 
+export const listRequestOffersQuerySchema = z.object({
+  order: requestOffersOrderSchema.optional().default('desc'),
+});
+
 export const createCounterOfferSchema = z.object({
   offerType: offerTypeSchema.optional().default('NONE'),
   offeredProducts: uuidArraySchema,
@@ -81,6 +86,7 @@ export const respondContactRevealSchema = z.object({
 
 export type CreateRequestInput = z.infer<typeof createRequestSchema>;
 export type ListRequestsQueryInput = z.infer<typeof listRequestsQuerySchema>;
+export type ListRequestOffersQueryInput = z.infer<typeof listRequestOffersQuerySchema>;
 export type CreateCounterOfferInput = z.infer<typeof createCounterOfferSchema>;
 export type CancelRequestInput = z.infer<typeof cancelRequestSchema>;
 export type RequestContactRevealInput = z.infer<typeof requestContactRevealSchema>;

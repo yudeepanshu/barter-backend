@@ -6,6 +6,7 @@ import {
   CancelRequestInput,
   CreateCounterOfferInput,
   CreateRequestInput,
+  ListRequestOffersQueryInput,
   ListRequestsQueryInput,
   RequestContactRevealInput,
   RespondContactRevealInput,
@@ -510,12 +511,16 @@ export const getRequestById = async (requestId: string, userId?: string) => {
   return mapRequestForViewer(request, userId);
 };
 
-export const getRequestOffers = async (requestId: string, userId?: string) => {
+export const getRequestOffers = async (
+  requestId: string,
+  query: ListRequestOffersQueryInput,
+  userId?: string,
+) => {
   if (!userId) {
     throw new AppError('Unauthorized', 401);
   }
 
-  return repo.listOffersForRequest(requestId, userId);
+  return repo.listOffersForRequest(requestId, userId, query.order);
 };
 
 export const getSentRequests = async (query: ListRequestsQueryInput, userId?: string) => {

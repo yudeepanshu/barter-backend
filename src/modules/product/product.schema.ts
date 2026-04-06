@@ -9,6 +9,7 @@ export const createProductSchema = z.object({
     .optional()
     .default('ACTIVE'),
   requestByMoney: z.boolean().optional().default(false),
+  minMoneyAmount: z.number().positive().optional(), // Minimum amount in rupees when requestByMoney is true
   isFree: z.boolean().optional().default(false),
   currentOwnerId: z.string().uuid().optional(),
   locationName: z.string().optional(),
@@ -50,6 +51,7 @@ export const updateProductSchema = z
     description: z.string().nullable().optional(),
     categoryId: z.string().uuid().nullable().optional(),
     requestByMoney: z.boolean().optional(),
+    minMoneyAmount: z.number().positive().nullable().optional(), // Min amount in rupees
     locationName: z.string().nullable().optional(),
     latitude: z.number().nullable().optional(),
     longitude: z.number().nullable().optional(),
@@ -79,3 +81,9 @@ export const queryProductsSchema = z.object({
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;
+
+export const requestOfferMoneySchema = z.object({
+  offeredAmount: z.number().positive(),
+});
+
+export type RequestOfferMoneyInput = z.infer<typeof requestOfferMoneySchema>;

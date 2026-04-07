@@ -32,6 +32,17 @@ export const createProduct = async (data: CreateProductInput & { currentOwnerId:
   });
 };
 
+export const countUserCreatableProducts = async (ownerId: string) => {
+  return prisma.product.count({
+    where: {
+      currentOwnerId: ownerId,
+      status: {
+        not: 'REMOVED',
+      },
+    },
+  });
+};
+
 export const findProductById = async (id: string) => {
   return prisma.product.findUnique({
     where: { id },

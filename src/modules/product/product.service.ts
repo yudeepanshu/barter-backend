@@ -11,10 +11,19 @@ import { CreateProductInput, UpdateProductInput, queryProductsSchema } from './p
 const storage = new S3BlobStorage();
 const INACTIVE_EXPIRY_DAYS = config.INACTIVE_PRODUCT_EXPIRY_DAYS;
 const INACTIVE_EXPIRY_MS = INACTIVE_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+const MAX_PRODUCTS_PER_USER = config.MAX_PRODUCTS_PER_USER;
 
 export const createProduct = async (data: CreateProductInput, userId?: string) => {
   if (!userId) {
     throw new AppError('Unauthorized', 401);
+  }
+
+  const userProductCount = await repo.countUserCreatableProducts(userId);
+  if (userProductCount >= MAX_PRODUCTS_PER_USER) {
+    throw new AppError(
+      `You can create up to ${MAX_PRODUCTS_PER_USER} products only. Remove an existing listing to add a new one.`,
+      409,
+    );
   }
 
   // Validate categoryId if provided

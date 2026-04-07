@@ -78,6 +78,66 @@ const validateOfferShape = (payload: OfferInputLike) => {
   }
 };
 
+const validateCounterOfferShape = (
+  payload: CreateCounterOfferInput,
+  actorRole: RequestActorRole,
+) => {
+  if (payload.offerType === 'NONE') return;
+
+  const offeredCount = payload.offeredProducts.length;
+  const requestedCount = payload.requestedProducts.length;
+  const hasAmount = payload.amount != null;
+
+  if (actorRole === 'SELLER' && offeredCount > 0) {
+    throw new AppError('Seller cannot include own listings in a counter offer', 400);
+  }
+
+  if (payload.offerType === 'PRODUCT') {
+    if (actorRole === 'SELLER') {
+      if (requestedCount === 0) {
+        throw new AppError('requestedProducts is required for PRODUCT offer type', 400);
+      }
+      if (hasAmount) {
+        throw new AppError('amount is not allowed for PRODUCT offer type', 400);
+      }
+      return;
+    }
+
+    if (offeredCount === 0) {
+      throw new AppError('offeredProducts is required for PRODUCT offer type', 400);
+    }
+    if (hasAmount) {
+      throw new AppError('amount is not allowed for PRODUCT offer type', 400);
+    }
+  }
+
+  if (payload.offerType === 'MONEY') {
+    if (!hasAmount) {
+      throw new AppError('amount is required for MONEY offer type', 400);
+    }
+    if (offeredCount > 0 || requestedCount > 0) {
+      throw new AppError('Product lists are not allowed for MONEY offer type', 400);
+    }
+  }
+
+  if (payload.offerType === 'MIXED') {
+    if (!hasAmount) {
+      throw new AppError('MIXED offer type requires amount', 400);
+    }
+
+    if (actorRole === 'SELLER') {
+      if (requestedCount === 0) {
+        throw new AppError('MIXED offer type requires amount and requestedProducts', 400);
+      }
+      return;
+    }
+
+    if (offeredCount === 0) {
+      throw new AppError('MIXED offer type requires both amount and offeredProducts', 400);
+    }
+  }
+};
+
 const validateOwnership = async (userId: string, productIds: string[], label: string) => {
   if (productIds.length === 0) {
     return;
@@ -367,8 +427,6 @@ export const createCounterOffer = async (
     throw new AppError('Unauthorized', 401);
   }
 
-  validateOfferShape(payload);
-
   const request = await repo.findRequestByIdForUser(requestId, userId);
   if (!request) {
     throw new AppError('Request not found', 404);
@@ -379,6 +437,7 @@ export const createCounterOffer = async (
   }
 
   const actorRole = getActorRoleFromRequest(request, userId);
+  validateCounterOfferShape(payload, actorRole);
 
   if (
     !request.product.requestByMoney &&

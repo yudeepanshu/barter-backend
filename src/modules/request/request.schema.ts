@@ -56,6 +56,7 @@ export const listRequestOffersQuerySchema = z.object({
 export const createCounterOfferSchema = z.object({
   offerType: offerTypeSchema.optional().default('NONE'),
   offeredProducts: uuidArraySchema,
+  requestedProducts: uuidArraySchema,
   amount: z.coerce.number().positive().optional(),
   visibleProducts: uuidArraySchema,
   message: z.string().trim().max(1000).optional(),

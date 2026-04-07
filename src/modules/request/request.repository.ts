@@ -48,6 +48,7 @@ type CounterOfferRecordInput = {
   amount?: number;
   offeredProducts: string[];
   visibleProducts: string[];
+  requestedProducts: string[];
   message?: string;
   expiresAt: Date;
 };
@@ -80,6 +81,16 @@ const requestInclude = {
     include: {
       offeredBy: true,
       offeredProducts: {
+        include: {
+          product: {
+            include: {
+              productImages: true,
+              category: true,
+            },
+          },
+        },
+      },
+      requestedProducts: {
         include: {
           product: {
             include: {
@@ -191,6 +202,7 @@ const createOffer = async (
   offerType: OfferType,
   amount: number | undefined,
   offeredProducts: string[],
+  requestedProducts: string[],
 ) => {
   const offer = await txDb.requestOffer.create({
     data: {
@@ -206,6 +218,15 @@ const createOffer = async (
   if (offeredProducts.length > 0) {
     await txDb.requestOfferProduct.createMany({
       data: offeredProducts.map((productId) => ({
+        offerId: offer.id,
+        productId,
+      })),
+    });
+  }
+
+  if (requestedProducts.length > 0) {
+    await txDb.requestOfferRequestedProduct.createMany({
+      data: requestedProducts.map((productId) => ({
         offerId: offer.id,
         productId,
       })),
@@ -258,6 +279,7 @@ export const upsertRequestThreadWithBuyerOffer = async (data: CreateRequestRecor
         data.offerType,
         data.amount,
         data.offeredProducts,
+        [],
       );
 
       await txDb.productReservation.updateMany({
@@ -296,6 +318,7 @@ export const upsertRequestThreadWithBuyerOffer = async (data: CreateRequestRecor
         data.offerType,
         data.amount,
         data.offeredProducts,
+        [],
       );
     }
 
@@ -463,6 +486,7 @@ export const createCounterOffer = async (data: CounterOfferRecordInput) => {
       data.offerType,
       data.amount,
       data.offeredProducts,
+      data.requestedProducts,
     );
 
     await replaceVisibleProducts(txDb, request.id, data.visibleProducts);
@@ -507,6 +531,16 @@ export const listOffersForRequest = async (
     include: {
       offeredBy: true,
       offeredProducts: {
+        include: {
+          product: {
+            include: {
+              productImages: true,
+              category: true,
+            },
+          },
+        },
+      },
+      requestedProducts: {
         include: {
           product: {
             include: {

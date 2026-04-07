@@ -164,6 +164,7 @@ model RequestOffer {
   request         Request               @relation(fields: [requestId], references: [id])
   offeredBy       User                  @relation("RequestOfferByUser", fields: [offeredById], references: [id])
   offeredProducts RequestOfferProduct[]
+  requestedProducts RequestOfferRequestedProduct[]
   reservations    ProductReservation[]
   transactions    Transaction[]
 
@@ -283,6 +284,19 @@ model RequestOfferProduct {
 
   @@unique([offerId, productId], name: "request_offer_product_unique")
   @@index([productId], name: "request_offer_product_product_idx")
+}
+
+model RequestOfferRequestedProduct {
+  id        String   @id @default(uuid())
+  offerId   String
+  productId String
+  createdAt DateTime @default(now())
+
+  offer   RequestOffer @relation(fields: [offerId], references: [id])
+  product Product      @relation(fields: [productId], references: [id])
+
+  @@unique([offerId, productId], name: "request_offer_requested_product_unique")
+  @@index([productId], name: "request_offer_requested_product_product_idx")
 }
 
 model RequestVisibleProduct {

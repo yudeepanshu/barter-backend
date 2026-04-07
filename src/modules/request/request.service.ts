@@ -17,6 +17,7 @@ type RequestActorRole = 'BUYER' | 'SELLER';
 type OfferInputLike = {
   offerType: 'PRODUCT' | 'MONEY' | 'MIXED' | 'NONE';
   offeredProducts: string[];
+  requestedProducts?: string[];
   amount?: number;
 };
 
@@ -391,7 +392,11 @@ export const createCounterOffer = async (
     throw new AppError('An offer is required for this product', 400);
   }
 
-  const allReferencedProducts = [...payload.offeredProducts, ...payload.visibleProducts];
+  const allReferencedProducts = [
+    ...payload.offeredProducts,
+    ...payload.visibleProducts,
+    ...payload.requestedProducts,
+  ];
   if (allReferencedProducts.includes(request.productId)) {
     throw new AppError(
       'Requested product cannot be reused inside offer/visibility product lists',
@@ -401,6 +406,8 @@ export const createCounterOffer = async (
 
   await validateOwnership(userId, payload.offeredProducts, 'offeredProducts');
   await validateOwnership(userId, payload.visibleProducts, 'visibleProducts');
+  const counterpartyId = actorRole === 'BUYER' ? request.sellerId : request.buyerId;
+  await validateOwnership(counterpartyId, payload.requestedProducts, 'requestedProducts');
 
   const expiresAt = new Date(Date.now() + payload.expiresInHours * 60 * 60 * 1000);
 
@@ -413,6 +420,7 @@ export const createCounterOffer = async (
     amount: payload.amount,
     offeredProducts: payload.offeredProducts,
     visibleProducts: payload.visibleProducts,
+    requestedProducts: payload.requestedProducts,
     message: payload.message,
     expiresAt,
   });

@@ -75,9 +75,10 @@ model Product {
   ownershipHistory ProductOwnershipHistory[]
   requests         Request[]
   reservations     ProductReservation[]
-  offeredInRequests RequestOfferProduct[]
-  visibleInRequests RequestVisibleProduct[]
-  transactions      Transaction[]
+  offeredInRequests    RequestOfferProduct[]
+  requestedInOffers    RequestOfferRequestedProduct[]
+  visibleInRequests    RequestVisibleProduct[]
+  transactions         Transaction[]
 
   @@index([status, isListed, createdAt, id], name: "product_list_cursor_idx")
   @@index([latitude, longitude], name: "product_location_idx")

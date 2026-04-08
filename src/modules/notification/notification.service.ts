@@ -1,4 +1,5 @@
 import { AppError } from '../../common/errors/AppError';
+import { API_ERROR_CODES } from '../../common/constants/apiResponses';
 import { logger } from '../../config/logger';
 import * as repo from './notification.repository';
 import type {
@@ -23,7 +24,7 @@ const decodeCursor = (cursor: string): { createdAt: Date; id: string } => {
 
   const createdAt = new Date(createdAtRaw);
   if (!id || Number.isNaN(createdAt.getTime())) {
-    throw new AppError('Invalid cursor', 400);
+    throw new AppError(API_ERROR_CODES.INVALID_CURSOR, 400);
   }
 
   return { createdAt, id };
@@ -34,7 +35,7 @@ export const registerPushDevice = async (
   payload: RegisterPushDeviceInput,
 ) => {
   if (!userId) {
-    throw new AppError('Unauthorized', 401);
+    throw new AppError(API_ERROR_CODES.UNAUTHORIZED, 401);
   }
 
   await repo.upsertPushDevice({
@@ -52,7 +53,7 @@ export const unregisterPushDevice = async (
   payload: UnregisterPushDeviceInput,
 ) => {
   if (!userId) {
-    throw new AppError('Unauthorized', 401);
+    throw new AppError(API_ERROR_CODES.UNAUTHORIZED, 401);
   }
 
   await repo.deactivatePushDevice(userId, payload.expoPushToken);
@@ -64,7 +65,7 @@ export const getNotifications = async (
   query: ListNotificationsQueryInput,
 ) => {
   if (!userId) {
-    throw new AppError('Unauthorized', 401);
+    throw new AppError(API_ERROR_CODES.UNAUTHORIZED, 401);
   }
 
   const notifications = await repo.listNotificationsByUserId({
@@ -93,7 +94,7 @@ export const getNotifications = async (
 
 export const markNotificationRead = async (userId: string | undefined, notificationId: string) => {
   if (!userId) {
-    throw new AppError('Unauthorized', 401);
+    throw new AppError(API_ERROR_CODES.UNAUTHORIZED, 401);
   }
 
   await repo.markNotificationRead(userId, notificationId);
@@ -103,7 +104,7 @@ export const markNotificationRead = async (userId: string | undefined, notificat
 
 export const markAllNotificationsRead = async (userId: string | undefined) => {
   if (!userId) {
-    throw new AppError('Unauthorized', 401);
+    throw new AppError(API_ERROR_CODES.UNAUTHORIZED, 401);
   }
 
   await repo.markAllNotificationsRead(userId);
@@ -112,7 +113,7 @@ export const markAllNotificationsRead = async (userId: string | undefined) => {
 
 export const clearAllNotifications = async (userId: string | undefined) => {
   if (!userId) {
-    throw new AppError('Unauthorized', 401);
+    throw new AppError(API_ERROR_CODES.UNAUTHORIZED, 401);
   }
 
   await repo.deleteAllNotifications(userId);

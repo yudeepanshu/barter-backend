@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { sendSuccess } from '../../common/utils/responseHandler';
+import { API_SUCCESS_CODES } from '../../common/constants/apiResponses';
 import * as requestService from './request.service';
 import {
   cancelRequestSchema,
@@ -17,7 +18,7 @@ export const createRequest = async (req: Request, res: Response) => {
   const payload = createRequestSchema.parse(req.body);
   const userId = req.user?.id;
   const result = await requestService.createRequest(payload, userId);
-  return sendSuccess(res, result, 'Request created', 201);
+  return sendSuccess(res, result, API_SUCCESS_CODES.REQUEST_CREATED, 201);
 };
 
 export const getRequestById = async (req: Request, res: Response) => {
@@ -40,21 +41,21 @@ export const createCounterOffer = async (req: Request, res: Response) => {
   const payload = createCounterOfferSchema.parse(req.body);
   const userId = req.user?.id;
   const result = await requestService.createCounterOffer(requestId, payload, userId);
-  return sendSuccess(res, result, 'Counter offer created', 201);
+  return sendSuccess(res, result, API_SUCCESS_CODES.COUNTER_OFFER_CREATED, 201);
 };
 
 export const acceptRequest = async (req: Request, res: Response) => {
   const { id: requestId } = requestIdParamSchema.parse(req.params);
   const userId = req.user?.id;
   const result = await requestService.acceptRequest(requestId, userId);
-  return sendSuccess(res, result, 'Request accepted');
+  return sendSuccess(res, result, API_SUCCESS_CODES.REQUEST_ACCEPTED);
 };
 
 export const rejectRequest = async (req: Request, res: Response) => {
   const { id: requestId } = requestIdParamSchema.parse(req.params);
   const userId = req.user?.id;
   const result = await requestService.rejectRequest(requestId, userId);
-  return sendSuccess(res, result, 'Request rejected');
+  return sendSuccess(res, result, API_SUCCESS_CODES.REQUEST_REJECTED);
 };
 
 export const cancelRequest = async (req: Request, res: Response) => {
@@ -62,7 +63,7 @@ export const cancelRequest = async (req: Request, res: Response) => {
   const payload = cancelRequestSchema.parse(req.body);
   const userId = req.user?.id;
   const result = await requestService.cancelRequest(requestId, payload, userId);
-  return sendSuccess(res, result, 'Request cancelled');
+  return sendSuccess(res, result, API_SUCCESS_CODES.REQUEST_CANCELLED);
 };
 
 export const getSentRequests = async (req: Request, res: Response) => {
@@ -84,7 +85,7 @@ export const requestContactReveal = async (req: Request, res: Response) => {
   const payload = requestContactRevealSchema.parse(req.body);
   const userId = req.user?.id;
   const result = await requestService.requestContactReveal(requestId, payload, userId);
-  return sendSuccess(res, result, 'Contact reveal requested');
+  return sendSuccess(res, result, API_SUCCESS_CODES.CONTACT_REVEAL_REQUESTED);
 };
 
 export const respondContactReveal = async (req: Request, res: Response) => {
@@ -101,6 +102,8 @@ export const respondContactReveal = async (req: Request, res: Response) => {
   return sendSuccess(
     res,
     result,
-    payload.approve ? 'Contact reveal approved' : 'Contact reveal rejected',
+    payload.approve
+      ? API_SUCCESS_CODES.CONTACT_REVEAL_APPROVED
+      : API_SUCCESS_CODES.CONTACT_REVEAL_REJECTED,
   );
 };

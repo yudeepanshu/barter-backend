@@ -1,6 +1,7 @@
 import prisma from '../../config/db';
 import * as repo from './user.repository';
 import { AppError } from '../../common/errors/AppError';
+import { API_ERROR_CODES } from '../../common/constants/apiResponses';
 import { PrismaClient } from '@prisma/client';
 import path from 'path';
 import { S3BlobStorage } from '../product/senders/s3Storage';
@@ -29,14 +30,14 @@ function extractOwnedProfileStorageKey(url: string, userId: string): string | nu
 export const createUserService = async (data: any) => {
   // At least one required
   if (!data.email && !data.mobileNumber) {
-    throw new AppError('Email or Mobile is required', 400);
+    throw new AppError(API_ERROR_CODES.USER_EMAIL_OR_MOBILE_REQUIRED, 400);
   }
 
   // Check duplicates
   const existing = await repo.findUserByEmailOrPhone(data.email, data.mobileNumber);
 
   if (existing) {
-    throw new AppError('User already exists', 409);
+    throw new AppError(API_ERROR_CODES.USER_ALREADY_EXISTS, 409);
   }
 
   return prisma.$transaction(
@@ -64,14 +65,14 @@ export const updateUserProfileService = async (
   const existingUser = await repo.findUserById(userId);
 
   if (!existingUser) {
-    throw new AppError('User not found', 404);
+    throw new AppError(API_ERROR_CODES.USER_NOT_FOUND, 404);
   }
 
   if (data.email !== undefined && data.email !== null) {
     const userWithEmail = await repo.findUserByEmail(data.email);
 
     if (userWithEmail && userWithEmail.id !== userId) {
-      throw new AppError('Email is already in use', 409);
+      throw new AppError(API_ERROR_CODES.EMAIL_ALREADY_IN_USE, 409);
     }
   }
 
@@ -79,7 +80,7 @@ export const updateUserProfileService = async (
     const userWithMobile = await repo.findUserByMobile(data.mobileNumber);
 
     if (userWithMobile && userWithMobile.id !== userId) {
-      throw new AppError('Mobile number is already in use', 409);
+      throw new AppError(API_ERROR_CODES.MOBILE_ALREADY_IN_USE, 409);
     }
   }
 
@@ -109,12 +110,12 @@ export const updateUserProfileService = async (
 export const generateProfilePicturePresignedUrl = async (userId: string, fileName: string) => {
   const user = await repo.findUserById(userId);
   if (!user) {
-    throw new AppError('User not found', 404);
+    throw new AppError(API_ERROR_CODES.USER_NOT_FOUND, 404);
   }
 
   const ext = path.extname(fileName).toLowerCase();
   if (!['.jpg', '.jpeg', '.png', '.webp'].includes(ext)) {
-    throw new AppError('Invalid file type. Only JPEG, PNG, WebP are allowed.', 400);
+    throw new AppError(API_ERROR_CODES.INVALID_FILE_TYPE, 400);
   }
 
   const mimeTypeByExt: Record<string, string> = {

@@ -1,4 +1,5 @@
 import { AppError } from '../../common/errors/AppError';
+import { API_ERROR_CODES } from '../../common/constants/apiResponses';
 import * as repo from './request.repository';
 import { logger } from '../../config/logger';
 import { dispatchNotificationToUser } from '../notification/notification.service';
@@ -55,25 +56,25 @@ const validateOfferShape = (payload: OfferInputLike) => {
 
   if (payload.offerType === 'PRODUCT') {
     if (offeredCount === 0) {
-      throw new AppError('offeredProducts is required for PRODUCT offer type', 400);
+      throw new AppError(API_ERROR_CODES.OFFER_PRODUCTS_REQUIRED, 400);
     }
     if (hasAmount) {
-      throw new AppError('amount is not allowed for PRODUCT offer type', 400);
+      throw new AppError(API_ERROR_CODES.OFFER_AMOUNT_NOT_ALLOWED_FOR_PRODUCT, 400);
     }
   }
 
   if (payload.offerType === 'MONEY') {
     if (!hasAmount) {
-      throw new AppError('amount is required for MONEY offer type', 400);
+      throw new AppError(API_ERROR_CODES.OFFER_AMOUNT_REQUIRED_FOR_MONEY, 400);
     }
     if (offeredCount > 0) {
-      throw new AppError('offeredProducts is not allowed for MONEY offer type', 400);
+      throw new AppError(API_ERROR_CODES.OFFER_PRODUCTS_NOT_ALLOWED_FOR_MONEY, 400);
     }
   }
 
   if (payload.offerType === 'MIXED') {
     if (!hasAmount || offeredCount === 0) {
-      throw new AppError('MIXED offer type requires both amount and offeredProducts', 400);
+      throw new AppError(API_ERROR_CODES.OFFER_MIXED_REQUIRES_AMOUNT_AND_PRODUCTS, 400);
     }
   }
 };
@@ -89,51 +90,51 @@ const validateCounterOfferShape = (
   const hasAmount = payload.amount != null;
 
   if (actorRole === 'SELLER' && offeredCount > 0) {
-    throw new AppError('Seller cannot include own listings in a counter offer', 400);
+    throw new AppError(API_ERROR_CODES.COUNTER_OFFER_SELLER_OWN_LISTINGS, 400);
   }
 
   if (payload.offerType === 'PRODUCT') {
     if (actorRole === 'SELLER') {
       if (requestedCount === 0) {
-        throw new AppError('requestedProducts is required for PRODUCT offer type', 400);
+        throw new AppError(API_ERROR_CODES.OFFER_REQUESTED_PRODUCTS_REQUIRED, 400);
       }
       if (hasAmount) {
-        throw new AppError('amount is not allowed for PRODUCT offer type', 400);
+        throw new AppError(API_ERROR_CODES.OFFER_AMOUNT_NOT_ALLOWED_FOR_PRODUCT, 400);
       }
       return;
     }
 
     if (offeredCount === 0) {
-      throw new AppError('offeredProducts is required for PRODUCT offer type', 400);
+      throw new AppError(API_ERROR_CODES.OFFER_PRODUCTS_REQUIRED, 400);
     }
     if (hasAmount) {
-      throw new AppError('amount is not allowed for PRODUCT offer type', 400);
+      throw new AppError(API_ERROR_CODES.OFFER_AMOUNT_NOT_ALLOWED_FOR_PRODUCT, 400);
     }
   }
 
   if (payload.offerType === 'MONEY') {
     if (!hasAmount) {
-      throw new AppError('amount is required for MONEY offer type', 400);
+      throw new AppError(API_ERROR_CODES.OFFER_AMOUNT_REQUIRED_FOR_MONEY, 400);
     }
     if (offeredCount > 0 || requestedCount > 0) {
-      throw new AppError('Product lists are not allowed for MONEY offer type', 400);
+      throw new AppError(API_ERROR_CODES.OFFER_PRODUCT_LISTS_NOT_ALLOWED_FOR_MONEY, 400);
     }
   }
 
   if (payload.offerType === 'MIXED') {
     if (!hasAmount) {
-      throw new AppError('MIXED offer type requires amount', 400);
+      throw new AppError(API_ERROR_CODES.OFFER_MIXED_REQUIRES_AMOUNT, 400);
     }
 
     if (actorRole === 'SELLER') {
       if (requestedCount === 0) {
-        throw new AppError('MIXED offer type requires amount and requestedProducts', 400);
+        throw new AppError(API_ERROR_CODES.OFFER_MIXED_REQUIRES_AMOUNT_AND_REQUESTED_PRODUCTS, 400);
       }
       return;
     }
 
     if (offeredCount === 0) {
-      throw new AppError('MIXED offer type requires both amount and offeredProducts', 400);
+      throw new AppError(API_ERROR_CODES.OFFER_MIXED_REQUIRES_AMOUNT_AND_PRODUCTS, 400);
     }
   }
 };
@@ -161,7 +162,7 @@ const getActorRoleFromRequest = (
     return 'SELLER';
   }
 
-  throw new AppError('Forbidden', 403);
+  throw new AppError(API_ERROR_CODES.FORBIDDEN, 403);
 };
 
 const getActiveReservation = (request: any) => {
@@ -298,32 +299,32 @@ const assertTargetHasContactForApproval = (request: any, targetUserId: string) =
   const pref = request.contactPreference;
 
   if (pref === 'PHONE' && !targetUser.mobileNumber) {
-    throw new AppError('Please add your phone number in profile before approving reveal', 409);
+    throw new AppError(API_ERROR_CODES.REVEAL_MISSING_PHONE, 409);
   }
 
   if (pref === 'EMAIL' && !targetUser.email) {
-    throw new AppError('Please add your email in profile before approving reveal', 409);
+    throw new AppError(API_ERROR_CODES.REVEAL_MISSING_EMAIL, 409);
   }
 
   if (pref === 'BOTH' && !targetUser.mobileNumber && !targetUser.email) {
-    throw new AppError('Please add phone or email in profile before approving reveal', 409);
+    throw new AppError(API_ERROR_CODES.REVEAL_MISSING_CONTACT, 409);
   }
 };
 
 export const createRequest = async (payload: CreateRequestInput, buyerId?: string) => {
   if (!buyerId) {
-    throw new AppError('Unauthorized', 401);
+    throw new AppError(API_ERROR_CODES.UNAUTHORIZED, 401);
   }
 
   validateOfferShape(payload);
 
   const product = await repo.findProductById(payload.productId);
   if (!product) {
-    throw new AppError('Product not found', 404);
+    throw new AppError(API_ERROR_CODES.PRODUCT_NOT_FOUND, 404);
   }
 
   if (product.currentOwnerId === buyerId) {
-    throw new AppError('You cannot request your own product', 400);
+    throw new AppError(API_ERROR_CODES.REQUEST_OWN_PRODUCT, 400);
   }
 
   if (
@@ -331,7 +332,7 @@ export const createRequest = async (payload: CreateRequestInput, buyerId?: strin
     !product.isFree &&
     (payload.offerType === 'MONEY' || payload.offerType === 'MIXED')
   ) {
-    throw new AppError('This product only accepts product-based offers', 400);
+    throw new AppError(API_ERROR_CODES.PRODUCT_ONLY_ACCEPTS_PRODUCT_OFFERS, 400);
   }
 
   if (
@@ -347,7 +348,7 @@ export const createRequest = async (payload: CreateRequestInput, buyerId?: strin
   }
 
   if (!product.isFree && payload.offerType === 'NONE') {
-    throw new AppError('An offer is required for this product', 400);
+    throw new AppError(API_ERROR_CODES.OFFER_REQUIRED, 400);
   }
 
   const now = new Date();
@@ -357,15 +358,12 @@ export const createRequest = async (payload: CreateRequestInput, buyerId?: strin
     !product.isListed ||
     (product.cooldownUntil && product.cooldownUntil > now)
   ) {
-    throw new AppError('Product is not available for requests', 409);
+    throw new AppError(API_ERROR_CODES.PRODUCT_NOT_AVAILABLE_FOR_REQUESTS, 409);
   }
 
   const allReferencedProducts = [...payload.offeredProducts, ...payload.visibleProducts];
   if (allReferencedProducts.includes(payload.productId)) {
-    throw new AppError(
-      'Requested product cannot be reused inside offer/visibility product lists',
-      400,
-    );
+    throw new AppError(API_ERROR_CODES.PRODUCT_REUSED_IN_OFFER_LIST, 400);
   }
 
   await validateOwnership(buyerId, payload.offeredProducts, 'offeredProducts');
@@ -437,16 +435,16 @@ export const createCounterOffer = async (
   userId?: string,
 ) => {
   if (!userId) {
-    throw new AppError('Unauthorized', 401);
+    throw new AppError(API_ERROR_CODES.UNAUTHORIZED, 401);
   }
 
   const request = await repo.findRequestByIdForUser(requestId, userId);
   if (!request) {
-    throw new AppError('Request not found', 404);
+    throw new AppError(API_ERROR_CODES.REQUEST_NOT_FOUND, 404);
   }
 
   if (request.expiresAt && request.expiresAt <= new Date()) {
-    throw new AppError('Request has expired', 409);
+    throw new AppError(API_ERROR_CODES.REQUEST_EXPIRED, 409);
   }
 
   const actorRole = getActorRoleFromRequest(request, userId);
@@ -457,7 +455,7 @@ export const createCounterOffer = async (
     !request.product.isFree &&
     (payload.offerType === 'MONEY' || payload.offerType === 'MIXED')
   ) {
-    throw new AppError('This product only accepts product-based offers', 400);
+    throw new AppError(API_ERROR_CODES.PRODUCT_ONLY_ACCEPTS_PRODUCT_OFFERS, 400);
   }
 
   if (actorRole === 'BUYER' && request.product.requestByMoney && payload.amount != null) {
@@ -485,7 +483,7 @@ export const createCounterOffer = async (
   }
 
   if (!request.product.isFree && payload.offerType === 'NONE') {
-    throw new AppError('An offer is required for this product', 400);
+    throw new AppError(API_ERROR_CODES.OFFER_REQUIRED, 400);
   }
 
   const allReferencedProducts = [
@@ -494,10 +492,7 @@ export const createCounterOffer = async (
     ...payload.requestedProducts,
   ];
   if (allReferencedProducts.includes(request.productId)) {
-    throw new AppError(
-      'Requested product cannot be reused inside offer/visibility product lists',
-      400,
-    );
+    throw new AppError(API_ERROR_CODES.PRODUCT_REUSED_IN_OFFER_LIST, 400);
   }
 
   await validateOwnership(userId, payload.offeredProducts, 'offeredProducts');
@@ -552,12 +547,12 @@ export const createCounterOffer = async (
 
 export const acceptRequest = async (requestId: string, userId?: string) => {
   if (!userId) {
-    throw new AppError('Unauthorized', 401);
+    throw new AppError(API_ERROR_CODES.UNAUTHORIZED, 401);
   }
 
   const request = await repo.findRequestByIdForUser(requestId, userId);
   if (!request) {
-    throw new AppError('Request not found', 404);
+    throw new AppError(API_ERROR_CODES.REQUEST_NOT_FOUND, 404);
   }
 
   const actorRole = getActorRoleFromRequest(request, userId);
@@ -575,12 +570,12 @@ export const acceptRequest = async (requestId: string, userId?: string) => {
 
 export const rejectRequest = async (requestId: string, userId?: string) => {
   if (!userId) {
-    throw new AppError('Unauthorized', 401);
+    throw new AppError(API_ERROR_CODES.UNAUTHORIZED, 401);
   }
 
   const request = await repo.findRequestByIdForUser(requestId, userId);
   if (!request) {
-    throw new AppError('Request not found', 404);
+    throw new AppError(API_ERROR_CODES.REQUEST_NOT_FOUND, 404);
   }
 
   const actorRole = getActorRoleFromRequest(request, userId);
@@ -601,12 +596,12 @@ export const cancelRequest = async (
   userId?: string,
 ) => {
   if (!userId) {
-    throw new AppError('Unauthorized', 401);
+    throw new AppError(API_ERROR_CODES.UNAUTHORIZED, 401);
   }
 
   const request = await repo.findRequestByIdForUser(requestId, userId);
   if (!request) {
-    throw new AppError('Request not found', 404);
+    throw new AppError(API_ERROR_CODES.REQUEST_NOT_FOUND, 404);
   }
 
   const actorRole = getActorRoleFromRequest(request, userId);
@@ -623,12 +618,12 @@ export const cancelRequest = async (
 
 export const getRequestById = async (requestId: string, userId?: string) => {
   if (!userId) {
-    throw new AppError('Unauthorized', 401);
+    throw new AppError(API_ERROR_CODES.UNAUTHORIZED, 401);
   }
 
   const request = await repo.findRequestByIdForUser(requestId, userId);
   if (!request) {
-    throw new AppError('Request not found', 404);
+    throw new AppError(API_ERROR_CODES.REQUEST_NOT_FOUND, 404);
   }
 
   return mapRequestForViewer(request, userId);
@@ -640,7 +635,7 @@ export const getRequestOffers = async (
   userId?: string,
 ) => {
   if (!userId) {
-    throw new AppError('Unauthorized', 401);
+    throw new AppError(API_ERROR_CODES.UNAUTHORIZED, 401);
   }
 
   return repo.listOffersForRequest(requestId, userId, query.order);
@@ -648,7 +643,7 @@ export const getRequestOffers = async (
 
 export const getSentRequests = async (query: ListRequestsQueryInput, userId?: string) => {
   if (!userId) {
-    throw new AppError('Unauthorized', 401);
+    throw new AppError(API_ERROR_CODES.UNAUTHORIZED, 401);
   }
 
   const results = await repo.listBuyerRequests(userId, query.status, query.limit, query.cursor);
@@ -658,7 +653,7 @@ export const getSentRequests = async (query: ListRequestsQueryInput, userId?: st
 
 export const getReceivedRequests = async (query: ListRequestsQueryInput, userId?: string) => {
   if (!userId) {
-    throw new AppError('Unauthorized', 401);
+    throw new AppError(API_ERROR_CODES.UNAUTHORIZED, 401);
   }
 
   const results = await repo.listSellerRequests(userId, query.status, query.limit, query.cursor);
@@ -672,21 +667,21 @@ export const requestContactReveal = async (
   userId?: string,
 ) => {
   if (!userId) {
-    throw new AppError('Unauthorized', 401);
+    throw new AppError(API_ERROR_CODES.UNAUTHORIZED, 401);
   }
 
   const request = await repo.findRequestByIdForUser(requestId, userId);
   if (!request) {
-    throw new AppError('Request not found', 404);
+    throw new AppError(API_ERROR_CODES.REQUEST_NOT_FOUND, 404);
   }
 
   if (request.status !== 'ACCEPTED' || request.product.status !== 'RESERVED') {
-    throw new AppError('Contact reveal is only available for accepted reserved requests', 409);
+    throw new AppError(API_ERROR_CODES.CONTACT_REVEAL_NOT_AVAILABLE, 409);
   }
 
   const reservation = getActiveReservation(request);
   if (!reservation) {
-    throw new AppError('No active reservation found for this request', 409);
+    throw new AppError(API_ERROR_CODES.NO_ACTIVE_RESERVATION, 409);
   }
 
   const actorRole = getActorRoleFromRequest(request, userId);
@@ -694,7 +689,7 @@ export const requestContactReveal = async (
 
   const alreadyVisible = viewerCanSeeCounterpartyContact(request, actorRole);
   if (alreadyVisible) {
-    throw new AppError('Contact info is already revealed', 409);
+    throw new AppError(API_ERROR_CODES.CONTACT_ALREADY_REVEALED, 409);
   }
 
   const existingRequest = reservation.contactRevealRequests.find(
@@ -702,11 +697,11 @@ export const requestContactReveal = async (
   );
   if (existingRequest) {
     if (existingRequest.status === 'PENDING') {
-      throw new AppError('A contact reveal request is already pending', 409);
+      throw new AppError(API_ERROR_CODES.CONTACT_REVEAL_ALREADY_PENDING, 409);
     }
 
     if (existingRequest.status === 'APPROVED') {
-      throw new AppError('Contact info is already revealed', 409);
+      throw new AppError(API_ERROR_CODES.CONTACT_ALREADY_REVEALED, 409);
     }
 
     await repo.reopenContactRevealRequest(existingRequest.id);
@@ -721,7 +716,7 @@ export const requestContactReveal = async (
 
   const refreshed = await repo.findRequestByIdForUser(requestId, userId);
   if (!refreshed) {
-    throw new AppError('Request not found', 404);
+    throw new AppError(API_ERROR_CODES.REQUEST_NOT_FOUND, 404);
   }
 
   return {
@@ -736,32 +731,32 @@ export const respondContactReveal = async (
   userId?: string,
 ) => {
   if (!userId) {
-    throw new AppError('Unauthorized', 401);
+    throw new AppError(API_ERROR_CODES.UNAUTHORIZED, 401);
   }
 
   const request = await repo.findRequestByIdForUser(requestId, userId);
   if (!request) {
-    throw new AppError('Request not found', 404);
+    throw new AppError(API_ERROR_CODES.REQUEST_NOT_FOUND, 404);
   }
 
   const reservation = getActiveReservation(request);
   if (!reservation) {
-    throw new AppError('No active reservation found for this request', 409);
+    throw new AppError(API_ERROR_CODES.NO_ACTIVE_RESERVATION, 409);
   }
 
   const revealRequest = reservation.contactRevealRequests.find(
     (reveal: any) => reveal.id === revealRequestId,
   );
   if (!revealRequest) {
-    throw new AppError('Reveal request not found', 404);
+    throw new AppError(API_ERROR_CODES.REVEAL_REQUEST_NOT_FOUND, 404);
   }
 
   if (revealRequest.targetUserId !== userId) {
-    throw new AppError('Only the target user can respond to this reveal request', 403);
+    throw new AppError(API_ERROR_CODES.REVEAL_REQUEST_NOT_TARGET, 403);
   }
 
   if (revealRequest.status !== 'PENDING') {
-    throw new AppError('Reveal request is already resolved', 409);
+    throw new AppError(API_ERROR_CODES.REVEAL_REQUEST_ALREADY_RESOLVED, 409);
   }
 
   if (payload.approve) {

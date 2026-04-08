@@ -1,4 +1,5 @@
 import { AppError } from '../../common/errors/AppError';
+import { API_ERROR_CODES } from '../../common/constants/apiResponses';
 import prisma from '../../config/db';
 
 const db = prisma as any;
@@ -50,7 +51,7 @@ const validateTransferredProducts = async (
   });
 
   if (products.length !== productIds.length) {
-    throw new AppError('One or more exchanged products no longer exist', 409);
+    throw new AppError(API_ERROR_CODES.PRODUCTS_NO_LONGER_EXIST, 409);
   }
 
   const productMap = new Map<string, any>(products.map((product: any) => [product.id, product]));
@@ -58,7 +59,7 @@ const validateTransferredProducts = async (
   for (const transfer of transfers) {
     const product = productMap.get(transfer.productId);
     if (!product || product.currentOwnerId !== transfer.fromOwnerId) {
-      throw new AppError('One or more exchanged products changed ownership before completion', 409);
+      throw new AppError(API_ERROR_CODES.PRODUCTS_CHANGED_OWNERSHIP, 409);
     }
   }
 
@@ -72,10 +73,7 @@ const validateTransferredProducts = async (
   });
 
   if (conflictingReservations.length > 0) {
-    throw new AppError(
-      'One or more exchanged products are locked by another active reservation',
-      409,
-    );
+    throw new AppError(API_ERROR_CODES.PRODUCTS_LOCKED_BY_RESERVATION, 409);
   }
 
   const conflictingTransactions = await txDb.transaction.findMany({
@@ -88,7 +86,7 @@ const validateTransferredProducts = async (
   });
 
   if (conflictingTransactions.length > 0) {
-    throw new AppError('One or more exchanged products are already in another transaction', 409);
+    throw new AppError(API_ERROR_CODES.PRODUCTS_IN_ANOTHER_TRANSACTION, 409);
   }
 };
 
@@ -279,15 +277,15 @@ export const startTransactionAndCreateOtp = async (params: {
     });
 
     if (!transaction) {
-      throw new AppError('Transaction not found', 404);
+      throw new AppError(API_ERROR_CODES.TRANSACTION_NOT_FOUND, 404);
     }
 
     if (transaction.status === 'COMPLETED') {
-      throw new AppError('Transaction is already completed', 409);
+      throw new AppError(API_ERROR_CODES.TRANSACTION_ALREADY_COMPLETED, 409);
     }
 
     if (transaction.status === 'CANCELLED') {
-      throw new AppError('Transaction is cancelled', 409);
+      throw new AppError(API_ERROR_CODES.TRANSACTION_CANCELLED, 409);
     }
 
     await invalidateOpenOtps(txDb, params.transactionId);
@@ -362,15 +360,15 @@ export const completeTransaction = async (params: { transactionId: string; otpId
     });
 
     if (!transaction) {
-      throw new AppError('Transaction not found', 404);
+      throw new AppError(API_ERROR_CODES.TRANSACTION_NOT_FOUND, 404);
     }
 
     if (transaction.status === 'COMPLETED') {
-      throw new AppError('Transaction is already completed', 409);
+      throw new AppError(API_ERROR_CODES.TRANSACTION_ALREADY_COMPLETED, 409);
     }
 
     if (transaction.status === 'CANCELLED') {
-      throw new AppError('Transaction is cancelled', 409);
+      throw new AppError(API_ERROR_CODES.TRANSACTION_CANCELLED, 409);
     }
 
     const now = new Date();

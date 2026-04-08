@@ -6,6 +6,7 @@ import { config } from './config/env';
 import routes from './routes/index';
 import { errorHandler } from './common/middlewares/errorHandler';
 import { sendError, sendSuccess } from './common/utils/responseHandler';
+import { API_ERROR_CODES, API_SUCCESS_CODES } from './common/constants/apiResponses';
 
 const app: Application = express();
 
@@ -26,10 +27,12 @@ app.use((req, _res, next) => {
 
 app.use('/api', routes);
 
-app.get('/health', (_req, res) => sendSuccess(res, { status: 'ok' }, 'Server is up and running'));
+app.get('/health', (_req, res) =>
+  sendSuccess(res, { status: 'ok' }, API_SUCCESS_CODES.SERVER_HEALTH_OK),
+);
 
 app.use((_req, res) => {
-  sendError(res, 'Not Found', 404);
+  sendError(res, API_ERROR_CODES.NOT_FOUND, 404);
 });
 
 app.use(errorHandler);

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 
 import { sendSuccess } from '../../common/utils/responseHandler';
+import { API_SUCCESS_CODES } from '../../common/constants/apiResponses';
 import {
   getActiveTransactionQuerySchema,
   transactionIdParamSchema,
@@ -21,7 +22,7 @@ export const generateOtp = async (req: Request, res: Response) => {
   const userId = req.user?.id;
 
   const result = await transactionService.generateTransactionOtp(transactionId, userId);
-  return sendSuccess(res, result, 'OTP generated');
+  return sendSuccess(res, result, API_SUCCESS_CODES.TRANSACTION_OTP_GENERATED);
 };
 
 export const verifyOtp = async (req: Request, res: Response) => {
@@ -30,5 +31,5 @@ export const verifyOtp = async (req: Request, res: Response) => {
   const userId = req.user?.id;
 
   const result = await transactionService.verifyTransactionOtp(transactionId, payload, userId);
-  return sendSuccess(res, result, 'Transaction completed');
+  return sendSuccess(res, result, API_SUCCESS_CODES.TRANSACTION_COMPLETED);
 };

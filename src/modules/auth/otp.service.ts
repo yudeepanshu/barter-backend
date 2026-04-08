@@ -5,6 +5,7 @@ import { config } from '../../config/env';
 import { AppError } from '../../common/errors/AppError';
 import { EmailOtpSender } from './senders/emailSender';
 import { OtpSender } from './senders/interface';
+import { API_ERROR_CODES } from '../../common/constants/apiResponses';
 
 const otpSender: OtpSender = new EmailOtpSender();
 
@@ -69,7 +70,7 @@ export const verifyOTP = async (identifier: string, code: string) => {
   const stored = await redis.get(otpKey);
 
   if (!stored) {
-    throw new AppError('OTP expired', 400);
+    throw new AppError(API_ERROR_CODES.OTP_EXPIRED, 400);
   }
 
   if (stored !== sanitizedCode) {
@@ -83,7 +84,7 @@ export const verifyOTP = async (identifier: string, code: string) => {
       await redis.del(otpKey);
     }
 
-    throw new AppError('Invalid OTP', 400);
+    throw new AppError(API_ERROR_CODES.INVALID_OTP, 400);
   }
 
   // success

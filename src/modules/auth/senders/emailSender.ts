@@ -1,6 +1,7 @@
 import { Resend } from 'resend';
 import { config } from '../../../config/env';
 import { AppError } from '../../../common/errors/AppError';
+import { API_ERROR_CODES } from '../../../common/constants/apiResponses';
 import { OtpSender } from './interface';
 
 export class EmailOtpSender implements OtpSender {
@@ -17,7 +18,7 @@ export class EmailOtpSender implements OtpSender {
 
       if (error) {
         console.error('Email sending failed:', error);
-        throw new AppError(error.message || 'Failed to send OTP email', 502);
+        throw new AppError(error.message || API_ERROR_CODES.OTP_EMAIL_SEND_FAILED, 502);
       }
     } catch (error) {
       console.error('Email sending failed:', error);
@@ -26,7 +27,7 @@ export class EmailOtpSender implements OtpSender {
         throw error;
       }
 
-      throw new AppError('Failed to send OTP email', 502);
+      throw new AppError(API_ERROR_CODES.OTP_EMAIL_SEND_FAILED, 502);
     }
   }
 }

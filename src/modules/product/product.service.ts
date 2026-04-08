@@ -4,6 +4,7 @@ import prisma from '../../config/db';
 import { config } from '../../config/env';
 import redis from '../../config/redis';
 import { AppError } from '../../common/errors/AppError';
+import { API_ERROR_CODES } from '../../common/constants/apiResponses';
 import { S3BlobStorage } from './senders/s3Storage';
 import * as repo from './product.repository';
 import { CreateProductInput, UpdateProductInput, queryProductsSchema } from './product.schema';
@@ -15,7 +16,7 @@ const MAX_PRODUCTS_PER_USER = config.MAX_PRODUCTS_PER_USER;
 
 export const createProduct = async (data: CreateProductInput, userId?: string) => {
   if (!userId) {
-    throw new AppError('Unauthorized', 401);
+    throw new AppError(API_ERROR_CODES.UNAUTHORIZED, 401);
   }
 
   const userProductCount = await repo.countUserCreatableProducts(userId);
@@ -30,7 +31,7 @@ export const createProduct = async (data: CreateProductInput, userId?: string) =
   if (data.categoryId) {
     const category = await prisma.category.findUnique({ where: { id: data.categoryId } });
     if (!category) {
-      throw new AppError('Category not found', 400);
+      throw new AppError(API_ERROR_CODES.CATEGORY_NOT_FOUND, 400);
     }
   }
 
@@ -49,7 +50,7 @@ export const createProduct = async (data: CreateProductInput, userId?: string) =
 export const getProductById = async (productId: string) => {
   const product = await repo.findProductById(productId);
   if (!product) {
-    throw new AppError('Product not found', 404);
+    throw new AppError(API_ERROR_CODES.PRODUCT_NOT_FOUND, 404);
   }
   return product;
 };
@@ -61,11 +62,11 @@ export const transferProductOwnership = async (
 ) => {
   const product = await getProductById(productId);
   if (product.currentOwnerId !== userId) {
-    throw new AppError('You can only transfer your own product', 403);
+    throw new AppError(API_ERROR_CODES.PRODUCT_TRANSFER_NOT_OWNER, 403);
   }
 
   if (newOwnerId === userId) {
-    throw new AppError('New owner must be different from current owner', 400);
+    throw new AppError(API_ERROR_CODES.PRODUCT_SAME_OWNER, 400);
   }
 
   await repo.closeProductOwnershipHistory(productId);
@@ -100,7 +101,7 @@ const decodeCursor = (cursor: string) => {
   const decoded = Buffer.from(cursor, 'base64').toString('utf8');
   const [createdAt, id] = decoded.split('|');
   if (!createdAt || !id) {
-    throw new AppError('Invalid cursor', 400);
+    throw new AppError(API_ERROR_CODES.INVALID_CURSOR, 400);
   }
   return { createdAt: new Date(createdAt), id };
 };
@@ -292,11 +293,11 @@ export const deleteProduct = async (productId: string, userId: string) => {
 
   // Check if user is the owner
   if (product.currentOwnerId !== userId) {
-    throw new AppError('You can only delete your own products', 403);
+    throw new AppError(API_ERROR_CODES.PRODUCT_DELETE_NOT_OWNER, 403);
   }
 
   if (product.status === 'REMOVED' && product.isListed === false) {
-    throw new AppError('Product is already removed', 409);
+    throw new AppError(API_ERROR_CODES.PRODUCT_ALREADY_REMOVED, 409);
   }
 
   return repo.markProductAsRemoved(productId);
@@ -308,18 +309,18 @@ export const updateProduct = async (
   userId?: string,
 ) => {
   if (!userId) {
-    throw new AppError('Unauthorized', 401);
+    throw new AppError(API_ERROR_CODES.UNAUTHORIZED, 401);
   }
 
   const product = await getProductById(productId);
   if (product.currentOwnerId !== userId) {
-    throw new AppError('You can only update your own product', 403);
+    throw new AppError(API_ERROR_CODES.PRODUCT_UPDATE_NOT_OWNER, 403);
   }
 
   if (payload.categoryId) {
     const category = await prisma.category.findUnique({ where: { id: payload.categoryId } });
     if (!category) {
-      throw new AppError('Category not found', 400);
+      throw new AppError(API_ERROR_CODES.CATEGORY_NOT_FOUND, 400);
     }
   }
 
@@ -352,22 +353,22 @@ export const updateProduct = async (
 
 export const relistProduct = async (productId: string, userId?: string) => {
   if (!userId) {
-    throw new AppError('Unauthorized', 401);
+    throw new AppError(API_ERROR_CODES.UNAUTHORIZED, 401);
   }
 
   const product = await getProductById(productId);
   if (product.currentOwnerId !== userId) {
-    throw new AppError('You can only relist your own product', 403);
+    throw new AppError(API_ERROR_CODES.PRODUCT_RELIST_NOT_OWNER, 403);
   }
 
   const now = new Date();
 
   if (product.cooldownUntil && product.cooldownUntil > now) {
-    throw new AppError('Product is still in cooldown', 409);
+    throw new AppError(API_ERROR_CODES.PRODUCT_IN_COOLDOWN, 409);
   }
 
   if (product.isListed && product.status === 'ACTIVE') {
-    throw new AppError('Product is already active', 409);
+    throw new AppError(API_ERROR_CODES.PRODUCT_ALREADY_ACTIVE, 409);
   }
 
   if (
@@ -375,7 +376,7 @@ export const relistProduct = async (productId: string, userId?: string) => {
     product.status !== 'REMOVED' &&
     product.status !== 'INACTIVE'
   ) {
-    throw new AppError('Only inactive, exchanged or removed products can be relisted', 409);
+    throw new AppError(API_ERROR_CODES.PRODUCT_RELIST_INVALID_STATUS, 409);
   }
 
   return prisma.product.update({
@@ -414,12 +415,12 @@ export const deleteProductImage = async (imageId: string, userId: string) => {
   });
 
   if (!image) {
-    throw new AppError('Image not found', 404);
+    throw new AppError(API_ERROR_CODES.IMAGE_NOT_FOUND, 404);
   }
 
   // Check if user is the product owner
   if (image.product.currentOwnerId !== userId) {
-    throw new AppError('You can only delete images from your own products', 403);
+    throw new AppError(API_ERROR_CODES.PRODUCT_IMAGE_DELETE_NOT_OWNER, 403);
   }
 
   await storage.deleteFile(image.storageKey);
@@ -433,15 +434,15 @@ export const generatePresignedUrls = async (
   userId: string,
 ) => {
   const product = await repo.findProductById(productId);
-  if (!product) throw new AppError('Product not found', 404);
+  if (!product) throw new AppError(API_ERROR_CODES.PRODUCT_NOT_FOUND, 404);
 
   // Check if user is the owner
   if (product.currentOwnerId !== userId) {
-    throw new AppError('You can only upload images to your own products', 403);
+    throw new AppError(API_ERROR_CODES.PRODUCT_UPLOAD_NOT_OWNER, 403);
   }
 
   if (fileNames.length === 0 || fileNames.length > 6) {
-    throw new AppError('You must provide 1-6 file names', 400);
+    throw new AppError(API_ERROR_CODES.PRODUCT_FILE_COUNT_INVALID, 400);
   }
 
   const urls = [];
@@ -456,7 +457,7 @@ export const generatePresignedUrls = async (
     // Validate file extension
     const ext = path.extname(fileName).toLowerCase();
     if (!['.jpg', '.jpeg', '.png', '.webp'].includes(ext)) {
-      throw new AppError('Invalid file type. Only JPEG, PNG, WebP are allowed.', 400);
+      throw new AppError(API_ERROR_CODES.INVALID_FILE_TYPE, 400);
     }
 
     const key = `products/${productId}/${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
@@ -481,15 +482,15 @@ export const addProductImagesFromUpload = async (
   userId: string,
 ) => {
   const product = await repo.findProductById(productId);
-  if (!product) throw new AppError('Product not found', 404);
+  if (!product) throw new AppError(API_ERROR_CODES.PRODUCT_NOT_FOUND, 404);
 
   // Check if user is the owner
   if (product.currentOwnerId !== userId) {
-    throw new AppError('You can only add images to your own products', 403);
+    throw new AppError(API_ERROR_CODES.PRODUCT_ADD_IMAGES_NOT_OWNER, 403);
   }
 
   if (imageData.length === 0 || imageData.length > 6) {
-    throw new AppError('You must provide 1-6 images', 400);
+    throw new AppError(API_ERROR_CODES.PRODUCT_IMAGE_COUNT_INVALID, 400);
   }
 
   // Optionally, verify the files exist in S3, but for simplicity, assume they do

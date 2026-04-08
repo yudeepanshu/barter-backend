@@ -1,7 +1,16 @@
 import { Response } from 'express';
+import {
+  API_ERROR_CODES,
+  API_SUCCESS_CODES,
+  ApiCode,
+  ApiErrorCode,
+  ApiSuccessCode,
+  resolveApiMessage,
+} from '../constants/apiResponses';
 
 interface ApiResponse<T = any> {
   success: boolean;
+  code?: ApiCode;
   message?: string;
   data?: T;
   error?: any;
@@ -11,10 +20,18 @@ interface ApiResponse<T = any> {
   };
 }
 
-export const sendSuccess = <T>(res: Response, data?: T, message = 'Success', statusCode = 200) => {
+export const sendSuccess = <T>(
+  res: Response,
+  data?: T,
+  codeOrMessage: ApiSuccessCode | string = API_SUCCESS_CODES.SUCCESS,
+  statusCode = 200,
+) => {
+  const resolved = resolveApiMessage(codeOrMessage);
+
   const response: ApiResponse<T> = {
     success: true,
-    message,
+    code: resolved.code,
+    message: resolved.message,
     data,
     meta: {
       timestamp: new Date().toISOString(),
@@ -26,13 +43,16 @@ export const sendSuccess = <T>(res: Response, data?: T, message = 'Success', sta
 
 export const sendError = (
   res: Response,
-  message = 'Something went wrong',
+  codeOrMessage: ApiErrorCode | string = API_ERROR_CODES.INTERNAL_SERVER_ERROR,
   statusCode = 500,
   error?: any,
 ) => {
+  const resolved = resolveApiMessage(codeOrMessage);
+
   const response: ApiResponse = {
     success: false,
-    message,
+    code: resolved.code,
+    message: resolved.message,
     error,
     meta: {
       timestamp: new Date().toISOString(),

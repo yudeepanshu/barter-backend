@@ -1,4 +1,5 @@
 import { AppError } from '../../common/errors/AppError';
+import { API_ERROR_CODES } from '../../common/constants/apiResponses';
 import { config } from '../../config/env';
 import prisma from '../../config/db';
 
@@ -417,7 +418,7 @@ export const respondContactRevealRequest = async (params: {
       });
 
       if (!reservation) {
-        throw new AppError('Reservation not found', 404);
+        throw new AppError(API_ERROR_CODES.RESERVATION_NOT_FOUND, 404);
       }
 
       if (
@@ -461,7 +462,7 @@ export const createCounterOffer = async (data: CounterOfferRecordInput) => {
     });
 
     if (!request) {
-      throw new AppError('Request not found', 404);
+      throw new AppError(API_ERROR_CODES.REQUEST_NOT_FOUND, 404);
     }
 
     if (
@@ -469,7 +470,7 @@ export const createCounterOffer = async (data: CounterOfferRecordInput) => {
       request.status === 'REJECTED' ||
       request.status === 'CANCELLED'
     ) {
-      throw new AppError('Request is already closed', 409);
+      throw new AppError(API_ERROR_CODES.REQUEST_ALREADY_CLOSED, 409);
     }
 
     if (request.expiresAt && request.expiresAt <= new Date()) {
@@ -480,11 +481,11 @@ export const createCounterOffer = async (data: CounterOfferRecordInput) => {
           cancelledReason: 'EXPIRED',
         },
       });
-      throw new AppError('Request has expired', 409);
+      throw new AppError(API_ERROR_CODES.REQUEST_EXPIRED, 409);
     }
 
     if (request.currentTurn !== data.actorRole) {
-      throw new AppError('Not your turn to make a counter offer', 409);
+      throw new AppError(API_ERROR_CODES.REQUEST_NOT_YOUR_TURN, 409);
     }
 
     await markActiveOffers(txDb, request.id, 'SUPERSEDED');
@@ -534,7 +535,7 @@ export const listOffersForRequest = async (
   });
 
   if (!request) {
-    throw new AppError('Request not found', 404);
+    throw new AppError(API_ERROR_CODES.REQUEST_NOT_FOUND, 404);
   }
 
   const offers = await db.requestOffer.findMany({
@@ -583,7 +584,7 @@ export const acceptActiveOffer = async (
 
     const request = await txDb.request.findUnique({ where: { id: requestId } });
     if (!request) {
-      throw new AppError('Request not found', 404);
+      throw new AppError(API_ERROR_CODES.REQUEST_NOT_FOUND, 404);
     }
 
     if (
@@ -591,11 +592,11 @@ export const acceptActiveOffer = async (
       request.status === 'REJECTED' ||
       request.status === 'CANCELLED'
     ) {
-      throw new AppError('Request is already closed', 409);
+      throw new AppError(API_ERROR_CODES.REQUEST_ALREADY_CLOSED, 409);
     }
 
     if (request.currentTurn !== actorRole) {
-      throw new AppError('Not your turn to accept', 409);
+      throw new AppError(API_ERROR_CODES.REQUEST_NOT_YOUR_TURN_ACCEPT, 409);
     }
 
     const activeOffer = await txDb.requestOffer.findFirst({
@@ -607,7 +608,7 @@ export const acceptActiveOffer = async (
     });
 
     if (!activeOffer) {
-      throw new AppError('No active offer found to accept', 409);
+      throw new AppError(API_ERROR_CODES.NO_ACTIVE_OFFER, 409);
     }
 
     const product = await txDb.product.findUnique({
@@ -615,16 +616,16 @@ export const acceptActiveOffer = async (
     });
 
     if (!product) {
-      throw new AppError('Product not found', 404);
+      throw new AppError(API_ERROR_CODES.PRODUCT_NOT_FOUND, 404);
     }
 
     const now = new Date();
     if (product.cooldownUntil && product.cooldownUntil > now) {
-      throw new AppError('Product is temporarily disabled due to excessive overrides', 409);
+      throw new AppError(API_ERROR_CODES.PRODUCT_TEMPORARILY_DISABLED, 409);
     }
 
     if (!product.isListed || (product.status !== 'ACTIVE' && product.status !== 'RESERVED')) {
-      throw new AppError('Product is not available for acceptance', 409);
+      throw new AppError(API_ERROR_CODES.PRODUCT_NOT_AVAILABLE_FOR_ACCEPTANCE, 409);
     }
 
     const previousReservation = await txDb.productReservation.findFirst({
@@ -652,7 +653,7 @@ export const acceptActiveOffer = async (
           },
         });
 
-        throw new AppError('Override limit exceeded. Product has been blocked for 7 days', 409);
+        throw new AppError(API_ERROR_CODES.OVERRIDE_LIMIT_EXCEEDED, 409);
       }
 
       await txDb.request.update({
@@ -866,7 +867,7 @@ export const rejectRequest = async (requestId: string, actorId: string, actorRol
 
     const request = await txDb.request.findUnique({ where: { id: requestId } });
     if (!request) {
-      throw new AppError('Request not found', 404);
+      throw new AppError(API_ERROR_CODES.REQUEST_NOT_FOUND, 404);
     }
 
     if (
@@ -874,11 +875,11 @@ export const rejectRequest = async (requestId: string, actorId: string, actorRol
       request.status === 'REJECTED' ||
       request.status === 'CANCELLED'
     ) {
-      throw new AppError('Request is already closed', 409);
+      throw new AppError(API_ERROR_CODES.REQUEST_ALREADY_CLOSED, 409);
     }
 
     if (request.currentTurn !== actorRole) {
-      throw new AppError('Not your turn to reject', 409);
+      throw new AppError(API_ERROR_CODES.REQUEST_NOT_YOUR_TURN_REJECT, 409);
     }
 
     await markActiveOffers(txDb, request.id, 'REJECTED');
@@ -913,7 +914,7 @@ export const cancelRequest = async (
 
     const request = await txDb.request.findUnique({ where: { id: requestId } });
     if (!request) {
-      throw new AppError('Request not found', 404);
+      throw new AppError(API_ERROR_CODES.REQUEST_NOT_FOUND, 404);
     }
 
     if (
@@ -921,7 +922,7 @@ export const cancelRequest = async (
       request.status === 'CANCELLED' ||
       request.status === 'EXPIRED'
     ) {
-      throw new AppError('Request is already closed', 409);
+      throw new AppError(API_ERROR_CODES.REQUEST_ALREADY_CLOSED, 409);
     }
 
     await markActiveOffers(txDb, request.id, 'CANCELLED');

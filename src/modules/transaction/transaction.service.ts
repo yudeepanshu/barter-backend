@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 
 import { AppError } from '../../common/errors/AppError';
+import { API_ERROR_CODES } from '../../common/constants/apiResponses';
 import { config } from '../../config/env';
 import * as repo from './transaction.repository';
 import { GetActiveTransactionQueryInput, VerifyTransactionOtpInput } from './transaction.schema';
@@ -13,24 +14,24 @@ const hashOtp = (otp: string) => crypto.createHash('sha256').update(otp).digest(
 
 export const generateTransactionOtp = async (transactionId: string, userId?: string) => {
   if (!userId) {
-    throw new AppError('Unauthorized', 401);
+    throw new AppError(API_ERROR_CODES.UNAUTHORIZED, 401);
   }
 
   const transaction = await repo.findTransactionByIdForUser(transactionId, userId);
   if (!transaction) {
-    throw new AppError('Transaction not found', 404);
+    throw new AppError(API_ERROR_CODES.TRANSACTION_NOT_FOUND, 404);
   }
 
   if (transaction.buyerId !== userId) {
-    throw new AppError('Only buyer can generate OTP', 403);
+    throw new AppError(API_ERROR_CODES.ONLY_BUYER_CAN_GENERATE_OTP, 403);
   }
 
   if (transaction.status === 'CANCELLED') {
-    throw new AppError('Transaction is cancelled', 409);
+    throw new AppError(API_ERROR_CODES.TRANSACTION_CANCELLED, 409);
   }
 
   if (transaction.status === 'COMPLETED') {
-    throw new AppError('Transaction is already completed', 409);
+    throw new AppError(API_ERROR_CODES.TRANSACTION_ALREADY_COMPLETED, 409);
   }
 
   const otp = generateNumericOtp();
@@ -56,20 +57,20 @@ export const verifyTransactionOtp = async (
   userId?: string,
 ) => {
   if (!userId) {
-    throw new AppError('Unauthorized', 401);
+    throw new AppError(API_ERROR_CODES.UNAUTHORIZED, 401);
   }
 
   const transaction = await repo.findTransactionByIdForUser(transactionId, userId);
   if (!transaction) {
-    throw new AppError('Transaction not found', 404);
+    throw new AppError(API_ERROR_CODES.TRANSACTION_NOT_FOUND, 404);
   }
 
   if (transaction.sellerId !== userId) {
-    throw new AppError('Only seller can verify OTP', 403);
+    throw new AppError(API_ERROR_CODES.ONLY_SELLER_CAN_VERIFY_OTP, 403);
   }
 
   if (transaction.status !== 'IN_PROGRESS') {
-    throw new AppError('Transaction must be in progress for OTP verification', 409);
+    throw new AppError(API_ERROR_CODES.TRANSACTION_NOT_IN_PROGRESS, 409);
   }
 
   const activeOtp = await repo.findLatestActiveOtpForTransaction(
@@ -77,13 +78,13 @@ export const verifyTransactionOtp = async (
     transaction.buyerId,
   );
   if (!activeOtp) {
-    throw new AppError('No active OTP found', 404);
+    throw new AppError(API_ERROR_CODES.NO_ACTIVE_OTP, 404);
   }
 
   const now = new Date();
   if (activeOtp.expiresAt <= now) {
     await repo.invalidateOtp(activeOtp.id);
-    throw new AppError('OTP expired', 400);
+    throw new AppError(API_ERROR_CODES.OTP_EXPIRED, 400);
   }
 
   const incomingHash = hashOtp(payload.otp);
@@ -92,7 +93,7 @@ export const verifyTransactionOtp = async (
     if (otpAfterAttempt.attemptCount >= OTP_MAX_ATTEMPTS) {
       await repo.invalidateOtp(activeOtp.id);
     }
-    throw new AppError('Invalid OTP', 400);
+    throw new AppError(API_ERROR_CODES.INVALID_OTP, 400);
   }
 
   const completedTransaction = await repo.completeTransaction({
@@ -108,7 +109,7 @@ export const getActiveTransaction = async (
   userId?: string,
 ) => {
   if (!userId) {
-    throw new AppError('Unauthorized', 401);
+    throw new AppError(API_ERROR_CODES.UNAUTHORIZED, 401);
   }
 
   const transaction = await repo.findActiveTransactionForUser({
@@ -118,7 +119,7 @@ export const getActiveTransaction = async (
   });
 
   if (!transaction) {
-    throw new AppError('Active transaction not found', 404);
+    throw new AppError(API_ERROR_CODES.ACTIVE_TRANSACTION_NOT_FOUND, 404);
   }
 
   return transaction;

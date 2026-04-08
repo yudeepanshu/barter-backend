@@ -5,6 +5,7 @@ import * as userRepo from '../user/user.repository';
 import * as userService from '../user/user.service';
 import { generateTokens } from '../../common/utils/jwt';
 import { config } from '../../config/env';
+import { API_ERROR_CODES } from '../../common/constants/apiResponses';
 
 type TokenPayload = {
   id: string;
@@ -56,13 +57,13 @@ export const refreshTokenService = async (refreshToken: string) => {
   try {
     decoded = jwt.verify(refreshToken, config.REFRESH_SECRET) as TokenPayload;
   } catch {
-    throw new AppError('Invalid refresh token', 401);
+    throw new AppError(API_ERROR_CODES.INVALID_REFRESH_TOKEN, 401);
   }
 
   const user = await userRepo.findUserById(decoded.id);
 
   if (!user) {
-    throw new AppError('User not found for refresh token', 401);
+    throw new AppError(API_ERROR_CODES.USER_NOT_FOUND_FOR_REFRESH_TOKEN, 401);
   }
 
   return generateTokens(user.id);

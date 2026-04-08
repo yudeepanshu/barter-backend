@@ -249,7 +249,8 @@ const mapRequestForViewer = (request: any, userId: string) => {
     reservation &&
     resolvedStatus === 'ACCEPTED' &&
     request.product?.status === 'RESERVED' &&
-    !viewerRevealRequest &&
+    viewerRevealRequest?.status !== 'PENDING' &&
+    !incomingPendingReveal &&
     !counterpartyContactVisible,
   );
 
@@ -484,6 +485,25 @@ export const createCounterOffer = async (
     expiresAt,
   });
 
+  dispatchNotificationToUser({
+    userId: counterpartyId,
+    type: 'REQUEST_COUNTERED',
+    title: 'New counter offer',
+    body: `${updated.offers[updated.offers.length - 1]?.offeredBy?.userName ?? 'Someone'} sent a counter offer on ${updated.product.title}`,
+    data: {
+      requestId: updated.id,
+      productId: updated.productId,
+      actorId: userId,
+      actorRole,
+    },
+  }).catch((error) => {
+    logger.warn('Failed to dispatch counter-offer notification', {
+      requestId: updated.id,
+      receiverId: counterpartyId,
+      reason: error instanceof Error ? error.message : 'unknown',
+    });
+  });
+
   return {
     request: mapRequestForViewer(updated, userId),
     internals: {
@@ -645,15 +665,23 @@ export const requestContactReveal = async (
     (reveal: any) => reveal.requesterId === userId && reveal.targetUserId === targetUserId,
   );
   if (existingRequest) {
-    throw new AppError('You can request contact reveal only once for this reservation', 409);
-  }
+    if (existingRequest.status === 'PENDING') {
+      throw new AppError('A contact reveal request is already pending', 409);
+    }
 
-  await repo.createContactRevealRequest({
-    requestId,
-    reservationId: reservation.id,
-    requesterId: userId,
-    targetUserId,
-  });
+    if (existingRequest.status === 'APPROVED') {
+      throw new AppError('Contact info is already revealed', 409);
+    }
+
+    await repo.reopenContactRevealRequest(existingRequest.id);
+  } else {
+    await repo.createContactRevealRequest({
+      requestId,
+      reservationId: reservation.id,
+      requesterId: userId,
+      targetUserId,
+    });
+  }
 
   const refreshed = await repo.findRequestByIdForUser(requestId, userId);
   if (!refreshed) {

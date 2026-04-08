@@ -374,6 +374,17 @@ export const createContactRevealRequest = async (params: {
   });
 };
 
+export const reopenContactRevealRequest = async (revealRequestId: string) => {
+  return db.contactRevealRequest.update({
+    where: { id: revealRequestId },
+    data: {
+      status: 'PENDING',
+      respondedAt: null,
+      respondedById: null,
+    },
+  });
+};
+
 export const respondContactRevealRequest = async (params: {
   revealRequestId: string;
   reservationId: string;

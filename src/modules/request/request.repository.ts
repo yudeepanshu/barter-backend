@@ -938,6 +938,33 @@ export const cancelRequest = async (
 
     await maybeReleaseReservation(txDb, request.id, 'USER_CANCELLED', request.productId);
 
+    const now = new Date();
+    await txDb.transaction.updateMany({
+      where: {
+        requestId: request.id,
+        status: { in: ['INITIATED', 'IN_PROGRESS'] },
+      },
+      data: {
+        status: 'CANCELLED',
+        cancelledAt: now,
+        cancelledReason: 'USER_CANCELLED',
+      },
+    });
+
+    await txDb.transactionOTP.updateMany({
+      where: {
+        transaction: {
+          requestId: request.id,
+          status: 'CANCELLED',
+        },
+        verifiedAt: null,
+        invalidatedAt: null,
+      },
+      data: {
+        invalidatedAt: now,
+      },
+    });
+
     return txDb.request.findUniqueOrThrow({
       where: { id: request.id },
       include: requestInclude,

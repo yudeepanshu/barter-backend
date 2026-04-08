@@ -334,6 +334,18 @@ export const createRequest = async (payload: CreateRequestInput, buyerId?: strin
     throw new AppError('This product only accepts product-based offers', 400);
   }
 
+  if (
+    product.requestByMoney &&
+    payload.amount != null &&
+    Number(product.minMoneyAmount) > 0 &&
+    payload.amount < Number(product.minMoneyAmount)
+  ) {
+    throw new AppError(
+      `Offer amount must be at least \u20b9${Number(product.minMoneyAmount)}`,
+      400,
+    );
+  }
+
   if (!product.isFree && payload.offerType === 'NONE') {
     throw new AppError('An offer is required for this product', 400);
   }
@@ -446,6 +458,30 @@ export const createCounterOffer = async (
     (payload.offerType === 'MONEY' || payload.offerType === 'MIXED')
   ) {
     throw new AppError('This product only accepts product-based offers', 400);
+  }
+
+  if (actorRole === 'BUYER' && request.product.requestByMoney && payload.amount != null) {
+    const productMin = Number(request.product.minMoneyAmount);
+    const sellerOfferAmounts = (request.offers ?? [])
+      .filter(
+        (offer: any) =>
+          offer.offeredById === request.sellerId &&
+          offer.status !== 'CANCELLED' &&
+          offer.offeredAmount != null,
+      )
+      .map((offer: any) => Number(offer.offeredAmount));
+    const lowestSellerOffer =
+      sellerOfferAmounts.length > 0 ? Math.min(...sellerOfferAmounts) : null;
+    const effectiveMin =
+      productMin > 0
+        ? lowestSellerOffer != null
+          ? Math.min(productMin, lowestSellerOffer)
+          : productMin
+        : null;
+
+    if (effectiveMin != null && payload.amount < effectiveMin) {
+      throw new AppError(`Offer amount must be at least \u20b9${effectiveMin}`, 400);
+    }
   }
 
   if (!request.product.isFree && payload.offerType === 'NONE') {

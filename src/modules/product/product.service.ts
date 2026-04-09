@@ -3,8 +3,10 @@ import { z } from 'zod';
 import prisma from '../../config/db';
 import { config } from '../../config/env';
 import redis from '../../config/redis';
+import { logger } from '../../config/logger';
 import { AppError } from '../../common/errors/AppError';
 import { API_ERROR_CODES } from '../../common/constants/apiResponses';
+import { eventDispatcher } from '../../events/eventDispatcher';
 import { S3BlobStorage } from './senders/s3Storage';
 import * as repo from './product.repository';
 import { CreateProductInput, UpdateProductInput, queryProductsSchema } from './product.schema';
@@ -13,6 +15,46 @@ const storage = new S3BlobStorage();
 const INACTIVE_EXPIRY_DAYS = config.INACTIVE_PRODUCT_EXPIRY_DAYS;
 const INACTIVE_EXPIRY_MS = INACTIVE_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
 const MAX_PRODUCTS_PER_USER = config.MAX_PRODUCTS_PER_USER;
+
+const publishProductRealtimeUpdate = async (params: {
+  product: {
+    id: string;
+    status: string;
+    isListed: boolean;
+    currentOwnerId?: string;
+    owner?: { id: string };
+  };
+  action:
+    | 'CREATED'
+    | 'UPDATED'
+    | 'RELISTED'
+    | 'REMOVED'
+    | 'RESERVED'
+    | 'EXCHANGED'
+    | 'OWNERSHIP_TRANSFERRED'
+    | 'IMAGES_UPDATED';
+}) => {
+  const ownerId = params.product.currentOwnerId ?? params.product.owner?.id;
+  if (!ownerId) {
+    return;
+  }
+
+  try {
+    await eventDispatcher.publish('product.updated', {
+      productId: params.product.id,
+      ownerId,
+      status: params.product.status,
+      isListed: params.product.isListed,
+      action: params.action,
+    });
+  } catch (error) {
+    logger.warn('Failed to publish product realtime event', {
+      productId: params.product.id,
+      action: params.action,
+      reason: error instanceof Error ? error.message : 'unknown',
+    });
+  }
+};
 
 export const createProduct = async (data: CreateProductInput, userId?: string) => {
   if (!userId) {
@@ -43,6 +85,11 @@ export const createProduct = async (data: CreateProductInput, userId?: string) =
 
   // Record initial ownership history
   await repo.createProductOwnershipHistory(product.id, userId);
+
+  await publishProductRealtimeUpdate({
+    product,
+    action: 'CREATED',
+  });
 
   return product;
 };
@@ -82,6 +129,11 @@ export const transferProductOwnership = async (
   });
 
   await repo.createProductOwnershipHistory(productId, newOwnerId);
+
+  await publishProductRealtimeUpdate({
+    product: updated,
+    action: 'OWNERSHIP_TRANSFERRED',
+  });
 
   return updated;
 };
@@ -300,7 +352,14 @@ export const deleteProduct = async (productId: string, userId: string) => {
     throw new AppError(API_ERROR_CODES.PRODUCT_ALREADY_REMOVED, 409);
   }
 
-  return repo.markProductAsRemoved(productId);
+  const removed = await repo.markProductAsRemoved(productId);
+
+  await publishProductRealtimeUpdate({
+    product: removed,
+    action: 'REMOVED',
+  });
+
+  return removed;
 };
 
 export const updateProduct = async (
@@ -340,7 +399,7 @@ export const updateProduct = async (
     updateData.status = 'INACTIVE';
   }
 
-  return prisma.product.update({
+  const updated = await prisma.product.update({
     where: { id: productId },
     data: updateData,
     include: {
@@ -349,6 +408,13 @@ export const updateProduct = async (
       owner: { select: { id: true, userName: true, profilePicture: true } },
     },
   });
+
+  await publishProductRealtimeUpdate({
+    product: updated,
+    action: 'UPDATED',
+  });
+
+  return updated;
 };
 
 export const relistProduct = async (productId: string, userId?: string) => {
@@ -379,7 +445,7 @@ export const relistProduct = async (productId: string, userId?: string) => {
     throw new AppError(API_ERROR_CODES.PRODUCT_RELIST_INVALID_STATUS, 409);
   }
 
-  return prisma.product.update({
+  const relisted = await prisma.product.update({
     where: { id: productId },
     data: {
       status: 'ACTIVE',
@@ -395,6 +461,13 @@ export const relistProduct = async (productId: string, userId?: string) => {
       owner: { select: { id: true, userName: true, profilePicture: true } },
     },
   });
+
+  await publishProductRealtimeUpdate({
+    product: relisted,
+    action: 'RELISTED',
+  });
+
+  return relisted;
 };
 
 export const markExpiredInactiveProductsAsRemoved = async () => {
@@ -425,7 +498,14 @@ export const deleteProductImage = async (imageId: string, userId: string) => {
 
   await storage.deleteFile(image.storageKey);
 
-  return repo.deleteProductImageById(imageId);
+  const deleted = await repo.deleteProductImageById(imageId);
+
+  await publishProductRealtimeUpdate({
+    product: image.product,
+    action: 'IMAGES_UPDATED',
+  });
+
+  return deleted;
 };
 
 export const generatePresignedUrls = async (
@@ -503,6 +583,11 @@ export const addProductImagesFromUpload = async (
       isPrimary: data.isPrimary,
     })),
   );
+
+  await publishProductRealtimeUpdate({
+    product,
+    action: 'IMAGES_UPDATED',
+  });
 
   return savedImages;
 };

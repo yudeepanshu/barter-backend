@@ -4,3 +4,7 @@ dist/
 
 /src/generated/prisma
 docker-compose.yml
+
+# Local realtime architecture drafts (keep out of repo for now)
+docs/horizontal-scaling-guide.md
+docs/realtime-events-api.md

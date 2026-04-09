@@ -2,6 +2,7 @@ import { AppError } from '../../common/errors/AppError';
 import { API_ERROR_CODES } from '../../common/constants/apiResponses';
 import * as repo from './request.repository';
 import { logger } from '../../config/logger';
+import { eventDispatcher } from '../../events/eventDispatcher';
 import { dispatchNotificationToUser } from '../notification/notification.service';
 import {
   CancelRequestInput,
@@ -20,6 +21,76 @@ type OfferInputLike = {
   offeredProducts: string[];
   requestedProducts?: string[];
   amount?: number;
+};
+
+const publishRequestRealtimeUpdate = async (params: {
+  request: {
+    id: string;
+    productId: string;
+    buyerId: string;
+    sellerId: string;
+    status: string;
+    currentTurn: string | null;
+  };
+  action:
+    | 'CREATED'
+    | 'COUNTERED'
+    | 'ACCEPTED'
+    | 'REJECTED'
+    | 'CANCELLED'
+    | 'CONTACT_REVEAL_REQUESTED'
+    | 'CONTACT_REVEAL_RESPONDED';
+  actorId?: string;
+}) => {
+  try {
+    await eventDispatcher.publish('request.updated', {
+      requestId: params.request.id,
+      productId: params.request.productId,
+      buyerId: params.request.buyerId,
+      sellerId: params.request.sellerId,
+      status: params.request.status,
+      currentTurn: params.request.currentTurn,
+      action: params.action,
+      actorId: params.actorId,
+    });
+  } catch (error) {
+    logger.warn('Failed to publish request realtime event', {
+      requestId: params.request.id,
+      action: params.action,
+      reason: error instanceof Error ? error.message : 'unknown',
+    });
+  }
+};
+
+const publishProductRealtimeFromRequest = async (params: {
+  request: {
+    id: string;
+    productId: string;
+    sellerId: string;
+    product?: { status: string; isListed: boolean };
+  };
+  action: 'RESERVED' | 'UPDATED';
+}) => {
+  if (!params.request.product) {
+    return;
+  }
+
+  try {
+    await eventDispatcher.publish('product.updated', {
+      productId: params.request.productId,
+      ownerId: params.request.sellerId,
+      status: params.request.product.status,
+      isListed: params.request.product.isListed,
+      action: params.action,
+      relatedRequestId: params.request.id,
+    });
+  } catch (error) {
+    logger.warn('Failed to publish product realtime event from request flow', {
+      requestId: params.request.id,
+      action: params.action,
+      reason: error instanceof Error ? error.message : 'unknown',
+    });
+  }
 };
 
 const encodeCursor = (createdAt: Date, id: string) => {
@@ -416,6 +487,12 @@ export const createRequest = async (payload: CreateRequestInput, buyerId?: strin
     });
   });
 
+  await publishRequestRealtimeUpdate({
+    request,
+    action: existingThread ? 'COUNTERED' : 'CREATED',
+    actorId: buyerId,
+  });
+
   return {
     request: mapRequestForViewer(request, buyerId),
     warning,
@@ -535,6 +612,12 @@ export const createCounterOffer = async (
     });
   });
 
+  await publishRequestRealtimeUpdate({
+    request: updated,
+    action: 'COUNTERED',
+    actorId: userId,
+  });
+
   return {
     request: mapRequestForViewer(updated, userId),
     internals: {
@@ -558,6 +641,17 @@ export const acceptRequest = async (requestId: string, userId?: string) => {
   const actorRole = getActorRoleFromRequest(request, userId);
   const result = await repo.acceptActiveOffer(requestId, userId, actorRole);
 
+  await publishRequestRealtimeUpdate({
+    request: result.request,
+    action: 'ACCEPTED',
+    actorId: userId,
+  });
+
+  await publishProductRealtimeFromRequest({
+    request: result.request,
+    action: 'RESERVED',
+  });
+
   return {
     request: mapRequestForViewer(result.request, userId),
     warning: result.warning,
@@ -580,6 +674,17 @@ export const rejectRequest = async (requestId: string, userId?: string) => {
 
   const actorRole = getActorRoleFromRequest(request, userId);
   const updated = await repo.rejectRequest(requestId, userId, actorRole);
+
+  await publishRequestRealtimeUpdate({
+    request: updated,
+    action: 'REJECTED',
+    actorId: userId,
+  });
+
+  await publishProductRealtimeFromRequest({
+    request: updated,
+    action: 'UPDATED',
+  });
 
   return {
     request: mapRequestForViewer(updated, userId),
@@ -606,6 +711,17 @@ export const cancelRequest = async (
 
   const actorRole = getActorRoleFromRequest(request, userId);
   const updated = await repo.cancelRequest(requestId, userId, actorRole, payload.reason);
+
+  await publishRequestRealtimeUpdate({
+    request: updated,
+    action: 'CANCELLED',
+    actorId: userId,
+  });
+
+  await publishProductRealtimeFromRequest({
+    request: updated,
+    action: 'UPDATED',
+  });
 
   return {
     request: mapRequestForViewer(updated, userId),
@@ -719,6 +835,12 @@ export const requestContactReveal = async (
     throw new AppError(API_ERROR_CODES.REQUEST_NOT_FOUND, 404);
   }
 
+  await publishRequestRealtimeUpdate({
+    request: refreshed,
+    action: 'CONTACT_REVEAL_REQUESTED',
+    actorId: userId,
+  });
+
   return {
     request: mapRequestForViewer(refreshed, userId),
   };
@@ -771,6 +893,12 @@ export const respondContactReveal = async (
     targetUserId: revealRequest.targetUserId,
     respondedById: userId,
     approve: payload.approve,
+  });
+
+  await publishRequestRealtimeUpdate({
+    request: updated,
+    action: 'CONTACT_REVEAL_RESPONDED',
+    actorId: userId,
   });
 
   return {

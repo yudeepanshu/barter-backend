@@ -340,6 +340,18 @@ export const findRequestByIdForUser = async (requestId: string, userId: string) 
   });
 };
 
+export const isUserParticipantInRequest = async (requestId: string, userId: string) => {
+  const request = await db.request.findFirst({
+    where: {
+      id: requestId,
+      OR: [{ buyerId: userId }, { sellerId: userId }],
+    },
+    select: { id: true },
+  });
+
+  return Boolean(request);
+};
+
 export const findContactRevealRequestById = async (revealRequestId: string) => {
   return db.contactRevealRequest.findUnique({
     where: { id: revealRequestId },

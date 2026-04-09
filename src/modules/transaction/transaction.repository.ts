@@ -231,6 +231,18 @@ export const findTransactionByIdForUser = async (transactionId: string, userId: 
   });
 };
 
+export const isUserParticipantInTransaction = async (transactionId: string, userId: string) => {
+  const transaction = await db.transaction.findFirst({
+    where: {
+      id: transactionId,
+      OR: [{ buyerId: userId }, { sellerId: userId }],
+    },
+    select: { id: true },
+  });
+
+  return Boolean(transaction);
+};
+
 export const findActiveTransactionForUser = async (params: {
   userId: string;
   requestId?: string;

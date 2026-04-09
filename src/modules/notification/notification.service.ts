@@ -1,5 +1,6 @@
 import { AppError } from '../../common/errors/AppError';
 import { API_ERROR_CODES } from '../../common/constants/apiResponses';
+import { eventDispatcher } from '../../events/eventDispatcher';
 import { logger } from '../../config/logger';
 import * as repo from './notification.repository';
 import type {
@@ -13,6 +14,30 @@ const summarizePushTokens = (tokens: string[]) => ({
   count: tokens.length,
   sample: tokens.slice(0, 3),
 });
+
+const publishNotificationRealtimeUpdate = async (params: {
+  userId: string;
+  action: 'CREATED' | 'READ' | 'READ_ALL' | 'CLEARED_ALL';
+  notificationId?: string;
+  notificationType?: string;
+  unreadCount?: number;
+}) => {
+  try {
+    await eventDispatcher.publish('notification.updated', {
+      userId: params.userId,
+      action: params.action,
+      notificationId: params.notificationId,
+      notificationType: params.notificationType,
+      unreadCount: params.unreadCount,
+    });
+  } catch (error) {
+    logger.warn('Failed to publish notification realtime event', {
+      userId: params.userId,
+      action: params.action,
+      reason: error instanceof Error ? error.message : 'unknown',
+    });
+  }
+};
 
 const encodeCursor = (createdAt: Date, id: string) => {
   return Buffer.from(`${createdAt.toISOString()}|${id}`, 'utf8').toString('base64');
@@ -99,6 +124,14 @@ export const markNotificationRead = async (userId: string | undefined, notificat
 
   await repo.markNotificationRead(userId, notificationId);
   const unreadCount = await repo.countUnreadNotifications(userId);
+
+  await publishNotificationRealtimeUpdate({
+    userId,
+    action: 'READ',
+    notificationId,
+    unreadCount,
+  });
+
   return { marked: true, unreadCount };
 };
 
@@ -108,6 +141,13 @@ export const markAllNotificationsRead = async (userId: string | undefined) => {
   }
 
   await repo.markAllNotificationsRead(userId);
+
+  await publishNotificationRealtimeUpdate({
+    userId,
+    action: 'READ_ALL',
+    unreadCount: 0,
+  });
+
   return { marked: true, unreadCount: 0 };
 };
 
@@ -117,6 +157,13 @@ export const clearAllNotifications = async (userId: string | undefined) => {
   }
 
   await repo.deleteAllNotifications(userId);
+
+  await publishNotificationRealtimeUpdate({
+    userId,
+    action: 'CLEARED_ALL',
+    unreadCount: 0,
+  });
+
   return { cleared: true };
 };
 
@@ -127,12 +174,22 @@ export const dispatchNotificationToUser = async (params: {
   body: string;
   data?: Record<string, unknown>;
 }) => {
-  await repo.createNotification({
+  const notification = await repo.createNotification({
     userId: params.userId,
     type: params.type,
     title: params.title,
     body: params.body,
     data: params.data,
+  });
+
+  const unreadCount = await repo.countUnreadNotifications(params.userId);
+
+  await publishNotificationRealtimeUpdate({
+    userId: params.userId,
+    action: 'CREATED',
+    notificationId: notification.id,
+    notificationType: notification.type,
+    unreadCount,
   });
 
   const tokens = await repo.getActivePushTokensByUserId(params.userId);

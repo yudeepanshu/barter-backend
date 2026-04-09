@@ -145,17 +145,17 @@ export const getProductOwnershipHistory = async (productId: string) => {
 
 type QueryProductsInput = z.infer<typeof queryProductsSchema>;
 
-const encodeCursor = (createdAt: Date, id: string) => {
-  return Buffer.from(`${createdAt.toISOString()}|${id}`, 'utf8').toString('base64');
+const encodeCursor = (dateValue: Date, id: string) => {
+  return Buffer.from(`${dateValue.toISOString()}|${id}`, 'utf8').toString('base64');
 };
 
 const decodeCursor = (cursor: string) => {
   const decoded = Buffer.from(cursor, 'base64').toString('utf8');
-  const [createdAt, id] = decoded.split('|');
-  if (!createdAt || !id) {
+  const [dateValue, id] = decoded.split('|');
+  if (!dateValue || !id) {
     throw new AppError(API_ERROR_CODES.INVALID_CURSOR, 400);
   }
-  return { createdAt: new Date(createdAt), id };
+  return { dateValue: new Date(dateValue), id };
 };
 
 const distanceKm = (lat1: number, lng1: number, lat2: number, lng2: number) => {
@@ -176,6 +176,7 @@ const getCacheKey = (query: QueryProductsInput) => {
     ownerId: query.ownerId ?? '',
     excludeOwnerId: query.excludeOwnerId ?? '',
     search: query.search ?? '',
+    sortBy: query.sortBy ?? 'updatedAt',
     limit: query.limit ?? 20,
     locationLat: query.locationLat ?? '',
     locationLng: query.locationLng ?? '',
@@ -186,6 +187,7 @@ const getCacheKey = (query: QueryProductsInput) => {
 
 export const getProducts = async (filters: QueryProductsInput, userId?: string) => {
   const limit = Math.min(filters.limit ?? 20, 100);
+  const sortBy = filters.sortBy ?? 'updatedAt';
 
   const useCache = !filters.cursor && !userId;
   const cacheKey = useCache ? getCacheKey(filters) : null;
@@ -239,9 +241,9 @@ export const getProducts = async (filters: QueryProductsInput, userId?: string) 
 
   const cursorCondition: any[] = [];
   if (filters.cursor) {
-    const { createdAt, id } = decodeCursor(filters.cursor);
+    const { dateValue, id } = decodeCursor(filters.cursor);
     cursorCondition.push({
-      OR: [{ createdAt: { lt: createdAt } }, { createdAt, id: { lt: id } }],
+      OR: [{ [sortBy]: { lt: dateValue } }, { [sortBy]: dateValue, id: { lt: id } }],
     });
   }
 
@@ -266,7 +268,7 @@ export const getProducts = async (filters: QueryProductsInput, userId?: string) 
       owner: { select: { id: true, userName: true, profilePicture: true } },
       ...reservationInclude,
     },
-    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    orderBy: [{ [sortBy]: 'desc' }, { id: 'desc' }],
     take: limit + 1,
   });
 
@@ -284,7 +286,7 @@ export const getProducts = async (filters: QueryProductsInput, userId?: string) 
       }))
       .sort((a, b) => {
         if (a.dist !== b.dist) return a.dist - b.dist;
-        return b.product.createdAt.getTime() - a.product.createdAt.getTime();
+        return b.product[sortBy].getTime() - a.product[sortBy].getTime();
       });
 
     products = productsWithDistance.map((item) => item.product);
@@ -319,7 +321,7 @@ export const getProducts = async (filters: QueryProductsInput, userId?: string) 
   });
 
   const nextCursor = hasMore
-    ? encodeCursor(products[products.length - 1].createdAt, products[products.length - 1].id)
+    ? encodeCursor(products[products.length - 1][sortBy], products[products.length - 1].id)
     : null;
 
   const response = {

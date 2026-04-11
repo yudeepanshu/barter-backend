@@ -10,7 +10,7 @@ export const createProductSchema = z.object({
   status: z
     .enum(['ACTIVE', 'INACTIVE', 'RESERVED', 'EXCHANGED', 'REMOVED'])
     .optional()
-    .default('ACTIVE'),
+    .default('INACTIVE'),
   requestByMoney: z.boolean().optional().default(false),
   minMoneyAmount: z.number().positive().optional(), // Minimum amount in rupees when requestByMoney is true
   isFree: z.boolean().optional().default(false),
@@ -21,7 +21,7 @@ export const createProductSchema = z.object({
   longitude: z.number().min(-180).max(180).optional(),
   isPreOwned: z.boolean().optional().default(false),
   lifecycleVersion: z.number().int().positive().optional().default(1),
-  isListed: z.boolean().optional().default(true),
+  isListed: z.boolean().optional().default(false),
 });
 
 export const uploadProductImagesSchema = z.object({

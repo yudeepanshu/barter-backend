@@ -77,6 +77,10 @@ export const createProduct = async (data: CreateProductInput, userId?: string) =
     }
   }
 
+  if (data.status === 'ACTIVE' || data.isListed === true) {
+    throw new AppError(API_ERROR_CODES.PRODUCT_RELIST_REQUIRES_IMAGE, 409);
+  }
+
   const productData = { ...data, currentOwnerId: userId } as CreateProductInput & {
     currentOwnerId: string;
   };
@@ -437,6 +441,10 @@ export const relistProduct = async (productId: string, userId?: string) => {
 
   if (product.isListed && product.status === 'ACTIVE') {
     throw new AppError(API_ERROR_CODES.PRODUCT_ALREADY_ACTIVE, 409);
+  }
+
+  if ((product.productImages?.length ?? 0) === 0) {
+    throw new AppError(API_ERROR_CODES.PRODUCT_RELIST_REQUIRES_IMAGE, 409);
   }
 
   if (

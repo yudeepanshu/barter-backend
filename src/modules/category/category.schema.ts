@@ -10,5 +10,11 @@ export const updateCategorySchema = z.object({
   parentCategoryId: z.string().uuid().optional().nullable(),
 });
 
+/** URL parameter schema for routes like GET /:id, PATCH /:id, DELETE /:id */
+export const categoryIdParamSchema = z.object({
+  id: z.string().uuid(),
+});
+
 export type CreateCategoryInput = z.infer<typeof createCategorySchema>;
 export type UpdateCategoryInput = z.infer<typeof updateCategorySchema>;
+export type CategoryIdParam = z.infer<typeof categoryIdParamSchema>;

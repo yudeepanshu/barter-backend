@@ -34,6 +34,7 @@ export const sendSuccess = <T>(
     message: resolved.message,
     data,
     meta: {
+      requestId: res.locals.requestId,
       timestamp: new Date().toISOString(),
     },
   };
@@ -55,6 +56,7 @@ export const sendError = (
     message: resolved.message,
     error,
     meta: {
+      requestId: res.locals.requestId,
       timestamp: new Date().toISOString(),
     },
   };

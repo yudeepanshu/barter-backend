@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 import { sendError } from '../utils/responseHandler';
 import { config } from '../../config/env';
 import { API_ERROR_CODES } from '../constants/apiResponses';
+import { auditFromRequest } from '../services/auditLogger';
 
 declare global {
   namespace Express {
@@ -16,17 +17,42 @@ export const adminAuth = (req: Request, res: Response, next: NextFunction) => {
   const adminKey = req.headers['x-admin-key'] as string;
 
   if (!adminKey) {
+    auditFromRequest(req, {
+      action: 'AUTH_ADMIN_ACCESS',
+      outcome: 'FAILURE',
+      reason: 'admin key missing',
+    });
+
     return sendError(res, API_ERROR_CODES.ADMIN_KEY_REQUIRED, 401);
   }
 
   try {
     const isValid = bcrypt.compareSync(adminKey, config.ADMIN_KEY_HASH);
     if (!isValid) {
+      auditFromRequest(req, {
+        action: 'AUTH_ADMIN_ACCESS',
+        outcome: 'FAILURE',
+        reason: 'invalid admin key',
+      });
+
       return sendError(res, API_ERROR_CODES.INVALID_ADMIN_KEY, 401);
     }
+
     req.isAdmin = true;
+
+    auditFromRequest(req, {
+      action: 'AUTH_ADMIN_ACCESS',
+      outcome: 'SUCCESS',
+    });
+
     next();
   } catch (error) {
+    auditFromRequest(req, {
+      action: 'AUTH_ADMIN_ACCESS',
+      outcome: 'FAILURE',
+      reason: 'admin auth exception',
+    });
+
     return sendError(res, API_ERROR_CODES.INVALID_ADMIN_KEY, 401);
   }
 };

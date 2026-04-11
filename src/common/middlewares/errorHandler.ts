@@ -10,7 +10,12 @@ interface AppError extends Error {
 }
 
 export const errorHandler = (err: AppError | ZodError, req: Request, res: Response, next: any) => {
-  logger.error('Error handler called', { error: err.message, url: req.url, method: req.method });
+  logger.error('Error handler called', {
+    requestId: req.requestId,
+    error: err.message,
+    url: req.url,
+    method: req.method,
+  });
 
   if (err instanceof ZodError) {
     const errors = err.issues.map((e) => `${e.path.join('.')}: ${e.message}`);

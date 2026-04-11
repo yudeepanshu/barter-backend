@@ -1,11 +1,19 @@
+import type { RateLimitInfo } from 'express-rate-limit';
+
 type AuthenticatedUser = {
   id: string;
   iat?: number;
   exp?: number;
 };
 
-declare namespace Express {
-  interface Request {
-    user?: AuthenticatedUser;
+declare global {
+  namespace Express {
+    interface Request {
+      user?: AuthenticatedUser;
+      rateLimit?: RateLimitInfo;
+      requestId?: string;
+    }
   }
 }
+
+export {};

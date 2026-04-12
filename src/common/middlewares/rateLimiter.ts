@@ -6,10 +6,11 @@
  *
  * Example:
  *   - Without limit: User can send 1,000 OTP attempts/second
- *   - With limit: User can send 3 OTP attempts/15 minutes
+ *   - With limit: User can request 6 OTPs/15 minutes and verify up to 12/15 minutes
  */
 
 import rateLimit, { ipKeyGenerator, type RateLimitInfo } from 'express-rate-limit';
+import type { NextFunction, Request, Response } from 'express';
 import RedisStore from 'rate-limit-redis';
 import redis from '../../config/redis';
 import { logger } from '../../config/logger';
@@ -24,47 +25,26 @@ const getRedisStore = (prefix: string) =>
     prefix, // E.g., "rl:otp:" means Redis keys like "rl:otp:user@email.com"
   });
 
-/**
- * OTP Rate Limiter
- *
- * Most restrictive because OTP is a security-critical endpoint.
- * If someone keeps trying OTP codes, they might be attacking an account.
- *
- * Config:
- * - Window: 15 minutes
- * - Max: 3 attempts per identifier (email/phone)
- * - Key: Identifier (not IP) so multiple users from same IP aren't blocked
- *
- * Example flow:
- *   1. User tries OTP: "request-otp?identifier=user@email.com" → Count = 1
- *   2. User tries again → Count = 2
- *   3. User tries again → Count = 3 ✓ Allowed
- *   4. User tries again → Count = 4 ✗ BLOCKED (exceed limit)
- *   5. After 15 minutes → Counter resets, can try again
- */
-export const otpRateLimiter = rateLimit({
-  store: getRedisStore('rl:otp:'),
-  windowMs: 15 * 60 * 1000, // 15 minutes in milliseconds
-  max: 3, // Maximum 3 requests
-  keyGenerator: (req) => {
-    // Use the identifier (email/phone) from request body
-    return req.body?.identifier || ipKeyGenerator(req.ip || '0.0.0.0');
-  },
-  message: 'Too many OTP attempts. Please wait 15 minutes before trying again.',
-  standardHeaders: true, // Send RateLimit-* headers in response
-  skip: () => config.NODE_ENV === 'development', // Disable in development for testing
-  handler: (req, res, _next, options) => {
+const otpRateLimitWindowMs = config.OTP_ROUTE_WINDOW_SECONDS * 1000;
+
+const otpIdentifierKeyGenerator = (req: Request) =>
+  req.body?.identifier || ipKeyGenerator(req.ip || '0.0.0.0');
+
+const otpRateLimitHandler =
+  (reason: string) =>
+  (req: Request, res: Response, _next: NextFunction, options: { message?: unknown }) => {
     const rateLimitInfo = (req as typeof req & { rateLimit?: RateLimitInfo }).rateLimit;
 
     logger.warn('OTP rate limit exceeded', {
       identifier: req.body?.identifier,
       ip: req.ip,
+      reason,
     });
 
     auditFromRequest(req, {
       action: 'AUTH_RATE_LIMIT_OTP',
       outcome: 'BLOCKED',
-      reason: 'otp rate limit exceeded',
+      reason,
       details: {
         identifierType:
           typeof req.body?.identifier === 'string' && req.body.identifier.includes('@')
@@ -80,8 +60,40 @@ export const otpRateLimiter = rateLimit({
       message: options.message,
       retryAfter: rateLimitInfo?.resetTime,
     });
-  },
+  };
+
+/**
+ * OTP request limiter (send/resend)
+ * Default: 6 requests per 15 minutes per identifier.
+ */
+export const otpRequestRateLimiter = rateLimit({
+  store: getRedisStore('rl:otp:request:'),
+  windowMs: otpRateLimitWindowMs,
+  max: config.OTP_REQUEST_ROUTE_MAX_REQUESTS,
+  keyGenerator: otpIdentifierKeyGenerator,
+  message: 'Too many OTP requests. Please wait before requesting again.',
+  standardHeaders: true,
+  skip: () => config.NODE_ENV === 'development',
+  handler: otpRateLimitHandler('otp request route rate limit exceeded'),
 });
+
+/**
+ * OTP verify limiter
+ * Default: 12 verification attempts per 15 minutes per identifier.
+ */
+export const otpVerifyRateLimiter = rateLimit({
+  store: getRedisStore('rl:otp:verify:'),
+  windowMs: otpRateLimitWindowMs,
+  max: config.OTP_VERIFY_ROUTE_MAX_REQUESTS,
+  keyGenerator: otpIdentifierKeyGenerator,
+  message: 'Too many OTP verification attempts. Please wait before trying again.',
+  standardHeaders: true,
+  skip: () => config.NODE_ENV === 'development',
+  handler: otpRateLimitHandler('otp verify route rate limit exceeded'),
+});
+
+// Backward-compatible alias for any existing imports.
+export const otpRateLimiter = otpRequestRateLimiter;
 
 /**
  * Refresh Token Rate Limiter

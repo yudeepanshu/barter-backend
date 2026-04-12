@@ -7,30 +7,37 @@ import {
   requestOtpSchema,
   verifyOtpSchema,
 } from '../../common/validators/auth';
-import { otpRateLimiter, refreshTokenLimiter } from '../../common/middlewares/rateLimiter';
+import {
+  otpRequestRateLimiter,
+  otpVerifyRateLimiter,
+  refreshTokenLimiter,
+} from '../../common/middlewares/rateLimiter';
 
 const router = Router();
 
 // ============================================================
 // OTP ENDPOINTS - Most Security-Critical
 // ============================================================
-// 🔒 Apply strict OTP rate limiter (3 attempts per 15 minutes)
+// 🔒 Apply OTP route limiters
 // WHY: Someone trying OTP codes repeatedly might be attacking an account
 //
 // Example: Brute force attack without protection
 //   Attacker tries all 1,000,000 combinations of 6-digit codes
-//   With our limit: Can only try 3 per 15 min = Would take 5M years 😂
+//   With our route limits:
+//   - request-otp: 6 / 15 min
+//   - verify-otp: 12 / 15 min
+//   (env-configurable)
 //
 router.post(
   '/request-otp',
-  otpRateLimiter, // Apply the strict limiter
+  otpRequestRateLimiter,
   validate(requestOtpSchema),
   asyncHandler(requestOtp),
 );
 
 router.post(
   '/verify-otp',
-  otpRateLimiter, // Same limiter for verify too
+  otpVerifyRateLimiter,
   validate(verifyOtpSchema),
   asyncHandler(verifyOtp),
 );

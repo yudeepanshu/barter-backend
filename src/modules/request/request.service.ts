@@ -31,6 +31,7 @@ const publishRequestRealtimeUpdate = async (params: {
     sellerId: string;
     status: string;
     currentTurn: string | null;
+    message?: string | null;
   };
   action:
     | 'CREATED'
@@ -50,6 +51,7 @@ const publishRequestRealtimeUpdate = async (params: {
       sellerId: params.request.sellerId,
       status: params.request.status,
       currentTurn: params.request.currentTurn,
+      message: params.request.message ?? null,
       action: params.action,
       actorId: params.actorId,
     });

@@ -39,6 +39,7 @@ export type DomainEventPayloadMap = {
     sellerId: string;
     status: string;
     currentTurn: string | null;
+    message?: string | null;
     action: RequestAction;
     actorId?: string;
   };

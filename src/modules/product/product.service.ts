@@ -394,6 +394,9 @@ export const updateProduct = async (
     ...(payload.description !== undefined ? { description: payload.description } : {}),
     ...(payload.categoryId !== undefined ? { categoryId: payload.categoryId } : {}),
     ...(payload.requestByMoney !== undefined ? { requestByMoney: payload.requestByMoney } : {}),
+    ...(payload.minMoneyAmount !== undefined
+      ? { minMoneyAmount: payload.minMoneyAmount ?? 0 }
+      : {}),
     ...(payload.locationName !== undefined ? { locationName: payload.locationName } : {}),
     ...(payload.latitude !== undefined ? { latitude: payload.latitude } : {}),
     ...(payload.longitude !== undefined ? { longitude: payload.longitude } : {}),

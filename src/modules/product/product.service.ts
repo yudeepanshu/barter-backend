@@ -257,7 +257,7 @@ export const getProducts = async (filters: QueryProductsInput, userId?: string) 
 
   const actualWhere = cursorCondition.length > 0 ? { AND: [where, ...cursorCondition] } : where;
 
-  const reservationInclude = userId
+  const reservationSelect = userId
     ? {
         reservations: {
           where: { status: 'ACTIVE' },
@@ -270,11 +270,43 @@ export const getProducts = async (filters: QueryProductsInput, userId?: string) 
 
   let products = await prisma.product.findMany({
     where: actualWhere,
-    include: {
-      productImages: true,
-      category: true,
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      categoryId: true,
+      status: true,
+      currentOwnerId: true,
+      requestByMoney: true,
+      minMoneyAmount: true,
+      isFree: true,
+      isPreOwned: true,
+      lastExchangedAt: true,
+      exchangeCount: true,
+      locationName: true,
+      latitude: true,
+      longitude: true,
+      isListed: true,
+      createdAt: true,
+      updatedAt: true,
+      productImages: {
+        select: {
+          id: true,
+          url: true,
+          isPrimary: true,
+          width: true,
+          height: true,
+        },
+      },
+      category: {
+        select: {
+          id: true,
+          name: true,
+          parentCategoryId: true,
+        },
+      },
       owner: { select: { id: true, userName: true, profilePicture: true } },
-      ...reservationInclude,
+      ...reservationSelect,
     },
     orderBy: [{ [sortBy]: 'desc' }, { id: 'desc' }],
     take: limit + 1,

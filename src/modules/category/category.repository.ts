@@ -20,7 +20,11 @@ export const findCategoryById = async (id: string) => {
 
 export const findAllCategories = async () => {
   return prisma.category.findMany({
-    include: { children: true, parentCategory: true },
+    select: {
+      id: true,
+      name: true,
+      parentCategoryId: true,
+    },
     orderBy: { name: 'asc' },
   });
 };

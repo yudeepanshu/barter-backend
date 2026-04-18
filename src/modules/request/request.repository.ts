@@ -131,6 +131,100 @@ const requestInclude = {
   contactRevealRequests: true,
 };
 
+const requestListInclude = {
+  product: {
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      currentOwnerId: true,
+      isListed: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  },
+  buyer: {
+    select: {
+      id: true,
+      userName: true,
+      profilePicture: true,
+      email: true,
+      mobileNumber: true,
+    },
+  },
+  seller: {
+    select: {
+      id: true,
+      userName: true,
+      profilePicture: true,
+      email: true,
+      mobileNumber: true,
+    },
+  },
+  offers: {
+    select: {
+      id: true,
+      requestId: true,
+      offeredById: true,
+      lifecycleVersion: true,
+      type: true,
+      offeredAmount: true,
+      status: true,
+      createdAt: true,
+      offeredBy: {
+        select: {
+          id: true,
+          userName: true,
+          profilePicture: true,
+          email: true,
+          mobileNumber: true,
+        },
+      },
+      offeredProducts: {
+        select: {
+          id: true,
+          productId: true,
+        },
+      },
+      requestedProducts: {
+        select: {
+          id: true,
+          productId: true,
+        },
+      },
+    },
+    orderBy: { createdAt: 'asc' as const },
+  },
+  visibleProducts: {
+    select: {
+      id: true,
+      requestId: true,
+      productId: true,
+    },
+  },
+  reservations: {
+    select: {
+      id: true,
+      status: true,
+      isContactVisible: true,
+      buyerCanViewSellerContact: true,
+      sellerCanViewBuyerContact: true,
+      createdAt: true,
+      updatedAt: true,
+      contactRevealRequests: true,
+    },
+  },
+  transactions: {
+    select: {
+      id: true,
+      status: true,
+      completedAt: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  },
+};
+
 export const findProductById = async (productId: string) => {
   return db.product.findUnique({
     where: { id: productId },
@@ -1052,7 +1146,7 @@ export const listBuyerRequests = async (
 
   return db.request.findMany({
     where: conditions.length === 1 ? conditions[0] : { AND: conditions },
-    include: requestInclude,
+    include: requestListInclude,
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: limit + 1,
   });
@@ -1070,7 +1164,7 @@ export const listSellerRequests = async (
 
   return db.request.findMany({
     where: conditions.length === 1 ? conditions[0] : { AND: conditions },
-    include: requestInclude,
+    include: requestListInclude,
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: limit + 1,
   });

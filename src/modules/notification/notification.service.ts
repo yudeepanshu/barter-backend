@@ -21,6 +21,7 @@ const publishNotificationRealtimeUpdate = async (params: {
   notificationId?: string;
   notificationType?: string;
   unreadCount?: number;
+  actorId?: string;
 }) => {
   try {
     await eventDispatcher.publish('notification.updated', {
@@ -29,6 +30,7 @@ const publishNotificationRealtimeUpdate = async (params: {
       notificationId: params.notificationId,
       notificationType: params.notificationType,
       unreadCount: params.unreadCount,
+      actorId: params.actorId,
     });
   } catch (error) {
     logger.warn('Failed to publish notification realtime event', {
@@ -130,6 +132,7 @@ export const markNotificationRead = async (userId: string | undefined, notificat
     action: 'READ',
     notificationId,
     unreadCount,
+    actorId: userId,
   });
 
   return { marked: true, unreadCount };
@@ -146,6 +149,7 @@ export const markAllNotificationsRead = async (userId: string | undefined) => {
     userId,
     action: 'READ_ALL',
     unreadCount: 0,
+    actorId: userId,
   });
 
   return { marked: true, unreadCount: 0 };
@@ -162,6 +166,7 @@ export const clearAllNotifications = async (userId: string | undefined) => {
     userId,
     action: 'CLEARED_ALL',
     unreadCount: 0,
+    actorId: userId,
   });
 
   return { cleared: true };

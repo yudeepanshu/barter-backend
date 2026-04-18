@@ -30,6 +30,7 @@ const publishTransactionRealtimeUpdate = async (params: {
     | 'CANCELLED'
     | 'OTP_EXPIRED'
     | 'OTP_INVALIDATED';
+  actorId?: string;
 }) => {
   try {
     await eventDispatcher.publish('transaction.updated', {
@@ -40,6 +41,7 @@ const publishTransactionRealtimeUpdate = async (params: {
       sellerId: params.transaction.sellerId,
       status: params.transaction.status,
       action: params.action,
+      actorId: params.actorId,
     });
   } catch (error) {
     logger.warn('Failed to publish transaction realtime event', {
@@ -92,6 +94,7 @@ export const generateTransactionOtp = async (transactionId: string, userId?: str
       status: 'IN_PROGRESS',
     },
     action: 'IN_PROGRESS',
+    actorId: userId,
   });
 
   return {
@@ -154,6 +157,7 @@ export const verifyTransactionOtp = async (
   await publishTransactionRealtimeUpdate({
     transaction: completedTransaction,
     action: 'COMPLETED',
+    actorId: userId,
   });
 
   try {
@@ -171,6 +175,7 @@ export const verifyTransactionOtp = async (
     await eventDispatcher.publish('product.updated', {
       productId: completedTransaction.productId,
       ownerId: completedTransaction.buyerId,
+      actorId: userId,
       status: 'EXCHANGED',
       isListed: false,
       action: 'EXCHANGED',

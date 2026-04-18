@@ -72,6 +72,7 @@ const publishProductRealtimeFromRequest = async (params: {
     product?: { status: string; isListed: boolean };
   };
   action: 'RESERVED' | 'UPDATED';
+  actorId?: string;
 }) => {
   if (!params.request.product) {
     return;
@@ -81,6 +82,7 @@ const publishProductRealtimeFromRequest = async (params: {
     await eventDispatcher.publish('product.updated', {
       productId: params.request.productId,
       ownerId: params.request.sellerId,
+      actorId: params.actorId,
       status: params.request.product.status,
       isListed: params.request.product.isListed,
       action: params.action,
@@ -652,6 +654,7 @@ export const acceptRequest = async (requestId: string, userId?: string) => {
   await publishProductRealtimeFromRequest({
     request: result.request,
     action: 'RESERVED',
+    actorId: userId,
   });
 
   return {
@@ -686,6 +689,7 @@ export const rejectRequest = async (requestId: string, userId?: string) => {
   await publishProductRealtimeFromRequest({
     request: updated,
     action: 'UPDATED',
+    actorId: userId,
   });
 
   return {
@@ -723,6 +727,7 @@ export const cancelRequest = async (
   await publishProductRealtimeFromRequest({
     request: updated,
     action: 'UPDATED',
+    actorId: userId,
   });
 
   return {

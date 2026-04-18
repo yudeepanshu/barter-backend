@@ -33,6 +33,7 @@ const publishProductRealtimeUpdate = async (params: {
     | 'EXCHANGED'
     | 'OWNERSHIP_TRANSFERRED'
     | 'IMAGES_UPDATED';
+  actorId?: string;
 }) => {
   const ownerId = params.product.currentOwnerId ?? params.product.owner?.id;
   if (!ownerId) {
@@ -43,6 +44,7 @@ const publishProductRealtimeUpdate = async (params: {
     await eventDispatcher.publish('product.updated', {
       productId: params.product.id,
       ownerId,
+      actorId: params.actorId,
       status: params.product.status,
       isListed: params.product.isListed,
       action: params.action,
@@ -93,6 +95,7 @@ export const createProduct = async (data: CreateProductInput, userId?: string) =
   await publishProductRealtimeUpdate({
     product,
     action: 'CREATED',
+    actorId: userId,
   });
 
   return product;
@@ -137,6 +140,7 @@ export const transferProductOwnership = async (
   await publishProductRealtimeUpdate({
     product: updated,
     action: 'OWNERSHIP_TRANSFERRED',
+    actorId: userId,
   });
 
   return updated;
@@ -363,6 +367,7 @@ export const deleteProduct = async (productId: string, userId: string) => {
   await publishProductRealtimeUpdate({
     product: removed,
     action: 'REMOVED',
+    actorId: userId,
   });
 
   return removed;
@@ -421,6 +426,7 @@ export const updateProduct = async (
   await publishProductRealtimeUpdate({
     product: updated,
     action: 'UPDATED',
+    actorId: userId,
   });
 
   return updated;
@@ -478,6 +484,7 @@ export const relistProduct = async (productId: string, userId?: string) => {
   await publishProductRealtimeUpdate({
     product: relisted,
     action: 'RELISTED',
+    actorId: userId,
   });
 
   return relisted;
@@ -516,6 +523,7 @@ export const deleteProductImage = async (imageId: string, userId: string) => {
   await publishProductRealtimeUpdate({
     product: image.product,
     action: 'IMAGES_UPDATED',
+    actorId: userId,
   });
 
   return deleted;
@@ -600,6 +608,7 @@ export const addProductImagesFromUpload = async (
   await publishProductRealtimeUpdate({
     product,
     action: 'IMAGES_UPDATED',
+    actorId: userId,
   });
 
   return savedImages;

@@ -11,6 +11,10 @@ export interface EnvConfig {
   REFRESH_SECRET: string;
   JWT_ACCESS_EXPIRES_IN: string;
   JWT_REFRESH_EXPIRES_IN: string;
+  AUTH_EMAIL_OTP_ENABLED: boolean;
+  AUTH_PHONE_OTP_ENABLED: boolean;
+  GOOGLE_AUTH_ENABLED: boolean;
+  GOOGLE_AUTH_CLIENT_IDS: string[];
   OTP_EXPIRY: number;
   MAX_ATTEMPTS: number;
   OTP_REQUEST_COOLDOWN_SECONDS: number;
@@ -81,6 +85,17 @@ function parseBoolean(value: string | undefined, fallback = false) {
   return ['1', 'true', 'yes', 'on'].includes(value.trim().toLowerCase());
 }
 
+function parseCsv(value: string | undefined): string[] {
+  if (!value) {
+    return [];
+  }
+
+  return value
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
 export const config: EnvConfig = {
   PORT: Number(process.env.PORT) || 8000,
   NODE_ENV: process.env.NODE_ENV || 'development',
@@ -90,6 +105,10 @@ export const config: EnvConfig = {
   REFRESH_SECRET: process.env.REFRESH_SECRET || 'refresh_secret',
   JWT_ACCESS_EXPIRES_IN: process.env.JWT_ACCESS_EXPIRES_IN || '15m',
   JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
+  AUTH_EMAIL_OTP_ENABLED: parseBoolean(process.env.AUTH_EMAIL_OTP_ENABLED, true),
+  AUTH_PHONE_OTP_ENABLED: parseBoolean(process.env.AUTH_PHONE_OTP_ENABLED, false),
+  GOOGLE_AUTH_ENABLED: parseBoolean(process.env.GOOGLE_AUTH_ENABLED, false),
+  GOOGLE_AUTH_CLIENT_IDS: parseCsv(process.env.GOOGLE_AUTH_CLIENT_IDS),
   OTP_EXPIRY: Number(process.env.OTP_EXPIRY) || 300,
   MAX_ATTEMPTS: Number(process.env.MAX_ATTEMPTS) || 5,
   OTP_REQUEST_COOLDOWN_SECONDS: Number(process.env.OTP_REQUEST_COOLDOWN_SECONDS) || 30,

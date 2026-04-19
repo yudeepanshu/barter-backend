@@ -7,6 +7,7 @@ export type SecurityAuditOutcome = 'SUCCESS' | 'FAILURE' | 'BLOCKED';
 export type SecurityAuditAction =
   | 'AUTH_OTP_REQUEST'
   | 'AUTH_OTP_VERIFY'
+  | 'AUTH_GOOGLE_LOGIN'
   | 'AUTH_REFRESH_TOKEN'
   | 'AUTH_LOGOUT'
   | 'AUTH_ADMIN_ACCESS'

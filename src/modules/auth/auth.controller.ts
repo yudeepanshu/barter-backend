@@ -64,6 +64,36 @@ export const verifyOtp = async (req: Request, res: Response) => {
   }
 };
 
+export const loginWithGoogle = async (req: Request, res: Response) => {
+  const { idToken } = req.body;
+
+  try {
+    const result = await authService.googleLoginService(idToken);
+
+    auditFromRequest(req, {
+      action: 'AUTH_GOOGLE_LOGIN',
+      outcome: 'SUCCESS',
+      details: {
+        identifierType: 'google',
+        authenticatedUserId: result.user.id,
+      },
+    });
+
+    return sendSuccess(res, result, API_SUCCESS_CODES.LOGIN_SUCCESSFUL);
+  } catch (error) {
+    auditFromRequest(req, {
+      action: 'AUTH_GOOGLE_LOGIN',
+      outcome: 'FAILURE',
+      reason: error instanceof Error ? error.message : 'google login failed',
+      details: {
+        identifierType: 'google',
+      },
+    });
+
+    throw error;
+  }
+};
+
 export const refreshToken = async (req: Request, res: Response) => {
   const { refreshToken } = req.body;
 

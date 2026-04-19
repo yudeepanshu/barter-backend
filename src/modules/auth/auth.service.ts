@@ -9,6 +9,7 @@ import { config } from '../../config/env';
 import { API_ERROR_CODES } from '../../common/constants/apiResponses';
 import redis from '../../config/redis';
 import { auditSecurityEvent } from '../../common/services/auditLogger';
+import { verifyGoogleIdToken } from './googleAuth.service';
 
 type TokenPayload = {
   id: string;
@@ -67,30 +68,96 @@ const mapAuthUser = (user: {
   profilePicture: user.profilePicture,
 });
 
+const EMAIL_IDENTIFIER_REGEX = /^[^\s@]{1,64}@[^\s@]+\.[^\s@]{2,}$/;
+const PHONE_IDENTIFIER_REGEX = /^\d{10}$/;
+
+const isEmailIdentifier = (identifier: string) => EMAIL_IDENTIFIER_REGEX.test(identifier);
+
+// Intentionally retained behind feature flag for future phone OTP re-enable.
+const isPhoneIdentifier = (identifier: string) => PHONE_IDENTIFIER_REGEX.test(identifier);
+
+const normalizeIdentifier = (identifier: string) => identifier.trim().toLowerCase();
+
+const assertIdentifierAuthModeEnabled = (identifier: string) => {
+  if (isEmailIdentifier(identifier) && !config.AUTH_EMAIL_OTP_ENABLED) {
+    throw new AppError(API_ERROR_CODES.EMAIL_OTP_DISABLED, 400);
+  }
+
+  if (isPhoneIdentifier(identifier) && !config.AUTH_PHONE_OTP_ENABLED) {
+    throw new AppError(API_ERROR_CODES.PHONE_OTP_DISABLED, 400);
+  }
+};
+
+const findUserByIdentifier = async (identifier: string) => {
+  if (isEmailIdentifier(identifier)) {
+    return userRepo.findUserByEmailOrPhone(identifier, undefined);
+  }
+
+  if (config.AUTH_PHONE_OTP_ENABLED && isPhoneIdentifier(identifier)) {
+    return userRepo.findUserByEmailOrPhone(undefined, identifier);
+  }
+
+  return null;
+};
+
+const buildUserFromIdentifier = (identifier: string) => ({
+  userName: 'New User',
+  email: isEmailIdentifier(identifier) ? identifier : undefined,
+  // Preserved path for future phone OTP support.
+  mobileNumber: isPhoneIdentifier(identifier) ? identifier : undefined,
+  allowPhone: isPhoneIdentifier(identifier),
+  allowEmail: isEmailIdentifier(identifier),
+});
+
+const issueAuthResult = (user: {
+  id: string;
+  userName: string;
+  email?: string | null;
+  mobileNumber?: string | null;
+  profilePicture?: string | null;
+}) => {
+  const tokens = generateTokens(user.id);
+  return { user: mapAuthUser(user), tokens };
+};
+
 export const requestOtpService = async (identifier: string) => {
-  await otpService.sendOTP(identifier);
+  const normalizedIdentifier = normalizeIdentifier(identifier);
+  assertIdentifierAuthModeEnabled(normalizedIdentifier);
+
+  await otpService.sendOTP(normalizedIdentifier);
 };
 
 export const verifyOtpService = async (identifier: string, code: string) => {
-  await otpService.verifyOTP(identifier, code);
+  const normalizedIdentifier = normalizeIdentifier(identifier);
+  assertIdentifierAuthModeEnabled(normalizedIdentifier);
 
-  let user = await userRepo.findUserByEmailOrPhone(identifier, identifier);
+  await otpService.verifyOTP(normalizedIdentifier, code);
+
+  let user = await findUserByIdentifier(normalizedIdentifier);
 
   if (!user) {
-    const data = {
-      userName: 'New User',
-      email: identifier.includes('@') ? identifier : undefined,
-      mobileNumber: !identifier.includes('@') ? identifier : undefined,
-      allowPhone: true,
-      allowEmail: false,
-    };
-
-    user = await userService.createUserService(data);
+    user = await userService.createUserService(buildUserFromIdentifier(normalizedIdentifier));
   }
 
-  const tokens = generateTokens(user!.id);
+  return issueAuthResult(user!);
+};
 
-  return { user: mapAuthUser(user!), tokens };
+export const googleLoginService = async (idToken: string) => {
+  const identity = await verifyGoogleIdToken(idToken);
+
+  let user = await userRepo.findUserByEmailOrPhone(identity.email, undefined);
+
+  if (!user) {
+    user = await userService.createUserService({
+      userName: identity.name?.trim() || 'New User',
+      email: identity.email,
+      profilePicture: identity.profilePicture,
+      allowPhone: false,
+      allowEmail: true,
+    });
+  }
+
+  return issueAuthResult(user!);
 };
 
 export const refreshTokenService = async (refreshToken: string) => {

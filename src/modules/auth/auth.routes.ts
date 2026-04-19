@@ -1,8 +1,9 @@
 import { Router } from 'express';
-import { logout, refreshToken, requestOtp, verifyOtp } from './auth.controller';
+import { loginWithGoogle, logout, refreshToken, requestOtp, verifyOtp } from './auth.controller';
 import { asyncHandler } from '../../common/utils/asyncHandler';
 import { validate } from '../../common/middlewares/validate';
 import {
+  googleLoginSchema,
   refreshTokenSchema,
   requestOtpSchema,
   verifyOtpSchema,
@@ -40,6 +41,13 @@ router.post(
   otpVerifyRateLimiter,
   validate(verifyOtpSchema),
   asyncHandler(verifyOtp),
+);
+
+router.post(
+  '/google',
+  refreshTokenLimiter,
+  validate(googleLoginSchema),
+  asyncHandler(loginWithGoogle),
 );
 
 // ============================================================

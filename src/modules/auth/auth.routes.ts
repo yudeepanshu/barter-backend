@@ -9,6 +9,7 @@ import {
   verifyOtpSchema,
 } from '../../common/validators/auth';
 import {
+  googleAuthLimiter,
   otpRequestRateLimiter,
   otpVerifyRateLimiter,
   refreshTokenLimiter,
@@ -45,7 +46,7 @@ router.post(
 
 router.post(
   '/google',
-  refreshTokenLimiter,
+  googleAuthLimiter,
   validate(googleLoginSchema),
   asyncHandler(loginWithGoogle),
 );

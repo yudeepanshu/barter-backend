@@ -113,6 +113,21 @@ export const refreshTokenLimiter = rateLimit({
 });
 
 /**
+ * Google login limiter
+ *
+ * Google sign-in can be retried several times during setup/debugging.
+ * Keep this separate from refresh-token limiter to avoid premature 429s.
+ */
+export const googleAuthLimiter = rateLimit({
+  store: getRedisStore('rl:auth:google:'),
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 30,
+  keyGenerator: (req) => ipKeyGenerator(req.ip || '0.0.0.0'),
+  skip: () => config.NODE_ENV === 'development',
+  standardHeaders: true,
+});
+
+/**
  * General API Rate Limiter
  *
  * Applied globally to all routes. Prevents basic DoS attacks.
